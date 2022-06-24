@@ -34,7 +34,7 @@ export class Player {
 
     /**
      * Have this player submit a word
-     * Modifies this player to have 
+     * Modifies this player
      * 
      * @param word the word that this player wants to submit,
      *             required to be a single word that consists of letter
@@ -59,6 +59,6 @@ export class Player {
      * Get the word this player has currently submitted
      */
     public get word(): string {
-        return ''
+        return this.submittedWord;
     }
 }
