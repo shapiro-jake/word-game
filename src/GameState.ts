@@ -20,6 +20,7 @@ export class GameState {
     //     - numberOfGuess >= 0
     // Safety From Rep Exposure
     //     - 
+
     /**
      * 
      */
@@ -27,11 +28,11 @@ export class GameState {
     }
 
     /**
-     * Register a new player to play this Word Game
+     * Register a new player to play this Word Game, required to consist of only alphanumeric characters
      * Modifies GameState to include the new player
      * 
      * @param playerID the ID of a new player that wants to play this Word Game
-     * @throws if a player with playerID is already playing this Word Game
+     * @throws if a player with playerID is already registered or is more than the second player to register
      */
     public registerPlayer(playerID: string): void {
     }
@@ -44,6 +45,7 @@ export class GameState {
      * @returns {boolean} a promise that resolves, when both players submit words, to
      *                    true iff both players have submitted words that match
      *                    and false otherwise
+     * @throws if player is not registered or there are not two people playing
      */
     public submitWord(playerID: string, word: string): Promise<boolean> {
     }
@@ -55,5 +57,14 @@ export class GameState {
      */
     public get numberOfPlayers(): number {
         return Object.keys(this.players).length;
+    }
+
+    /**
+     * Get the IDs of all the players playing this game
+     * 
+     * @returns {Set<string>} a set containing the IDs of the players playing this game
+     */
+    public get playerIDs(): Set<string> {
+
     }
 }
