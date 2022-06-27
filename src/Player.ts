@@ -37,9 +37,30 @@ export class Player {
      * Modifies this player
      * 
      * @param word the word that this player wants to submit,
-     *             required to be a single word that consists of letter
+     *             required to be a single word that consists only of letters, either upper or lowercase
      */
-    public submitWord(word: string): void {}
+    public submitWord(word: string): void {
+        this.submittedWord = word;
+        this.state = State.SUBMITTED
+    }
+
+    /**
+     * Update this player to be victorious
+     * Modifies this player
+     */
+    public win(): void {
+        this.submittedWord = '';
+        this.state = State.VICTORIOUS
+    }
+
+    /**
+     * Update this player to have submitted a non-matching word
+     * Modifies this player
+     */
+    public lose(): void {
+        this.submittedWord = '';
+        this.state = State.WAITING;
+    }
 
     /**
      * Check if this player has a match with another player

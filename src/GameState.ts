@@ -48,6 +48,9 @@ export class GameState {
      * @throws if player is not registered or there are not two people playing
      */
     public submitWord(playerID: string, word: string): Promise<boolean> {
+        return new Promise((resolve, reject) => {
+            resolve(true);
+        })
     }
 
     /**
@@ -65,6 +68,6 @@ export class GameState {
      * @returns {Set<string>} a set containing the IDs of the players playing this game
      */
     public get playerIDs(): Set<string> {
-
+        return new Set();
     }
 }

@@ -1,9 +1,8 @@
 import assert from 'assert';
 import { WebServer } from '../src/server';
 import { GameState } from '../src/GameState';
-import fetch from 'node-fetch';
 import HttpStatus from 'http-status-codes';
-
+import fetch from 'node-fetch';
 /**
  * Start a server at port 'port' with a blank GameState
  * 
@@ -49,17 +48,17 @@ describe('WebServer', () => {
         
         const server = await startServer(0);
 
-        const registerURL = `http://localhost:${server.port}/register/${playerID}`
+        const registerURL = `http://localhost:${server.port}/register/${invalidID}`
         const registerResponse = await fetch(registerURL);
         assert.strictEqual(await registerResponse.text(), 'Invalid player ID!');
         assert.strictEqual(registerResponse.status, HttpStatus.NOT_ACCEPTABLE);
 
-        const submitURL = `http://localhost:${server.port}/submit/${playerID}/${word}`
+        const submitURL = `http://localhost:${server.port}/submit/${invalidID}/${word}`
         const submitResponse = await fetch(submitURL);
         assert.strictEqual(await submitResponse.text(), 'Invalid player ID!');
         assert.strictEqual(submitResponse.status, HttpStatus.NOT_ACCEPTABLE);
 
-        const playAgainURL = `http://localhost:${server.port}/playAgain/${playerID}`
+        const playAgainURL = `http://localhost:${server.port}/playAgain/${invalidID}`
         const playAgainResponse = await fetch(playAgainURL);
         assert.strictEqual(await playAgainResponse.text(), 'Invalid player ID!');
         assert.strictEqual(playAgainResponse.status, HttpStatus.NOT_ACCEPTABLE);
@@ -87,12 +86,12 @@ describe('WebServer', () => {
         
         const server = await startServer(0);
 
-        const submitURL = `http://localhost:${server.port}/submit/${playerID}/${word}`
+        const submitURL = `http://localhost:${server.port}/submit/${unregisteredID}/${word}`
         const submitResponse = await fetch(submitURL);
         assert.strictEqual(await submitResponse.text(), 'Unregistered player!');
         assert.strictEqual(submitResponse.status, HttpStatus.NOT_ACCEPTABLE);
 
-        const playAgainURL = `http://localhost:${server.port}/playAgain/${playerID}`
+        const playAgainURL = `http://localhost:${server.port}/playAgain/${unregisteredID}`
         const playAgainResponse = await fetch(playAgainURL);
         assert.strictEqual(await playAgainResponse.text(), 'Unregistered player!');
         assert.strictEqual(playAgainResponse.status, HttpStatus.NOT_ACCEPTABLE);
@@ -116,6 +115,30 @@ describe('WebServer', () => {
 
         server.stop(); 
     });
+
+    it('covers a player submitting an invalid word', async function() {
+        const player1ID = 'BobSmith'
+        const player2ID = 'JackJohn'
+
+        const word = 'cat dog'
+        
+        const server = await startServer(0);
+
+        const registerURL1 = `http://localhost:${server.port}/register/${player1ID}`
+        const registerResponse1 = await fetch(registerURL1);
+        assert.strictEqual(await registerResponse1.text(), `Registered ${player1ID}`);
+
+        const registerURL2 = `http://localhost:${server.port}/register/${player2ID}`
+        const registerResponse2 = await fetch(registerURL2);
+        assert.strictEqual(await registerResponse2.text(), `Registered ${player2ID}`);
+
+        const submitURL1 = `http://localhost:${server.port}/submit/${player1ID}/${word}`
+        const submitResponse1 = await fetch(submitURL1);
+        assert.strictEqual(await submitResponse1.text(), `Invalid playerID or word!`);
+        assert.strictEqual(submitResponse1.status, HttpStatus.NOT_ACCEPTABLE);
+
+        server.stop(); 
+    })
 
     it('covers two players submitting non-matching words', async function () {
         const player1ID = 'BobSmith'

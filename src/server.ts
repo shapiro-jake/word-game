@@ -1,5 +1,7 @@
+import { assert } from 'console';
 import express, { Application } from 'express';
 import { Server } from 'http';
+import HttpStatus from 'http-status-codes';
 import { GameState } from './GameState';
 
 
@@ -35,6 +37,69 @@ export class WebServer {
         this.app.use((request, response, next) => {
             response.set('Access-Control-Allow-Origin', '*');
             next();
+        });
+
+        /** 
+         * Handle a request for /register/playerID by responding with the response of the Word Game
+         * if playerID consists of only alphanumeric characters; error 406 otherwise.
+         */
+        this.app.get('/register/:playerID', function(request, response) {
+            const { playerID } = request.params;
+            assert(playerID);
+            if(/[\w\d]+/.test(playerID)) {
+                response
+                .status(HttpStatus.OK)
+                .type('text')
+                .send(`Registered ${playerID}`);
+            } else {
+                response
+                .status(HttpStatus.NOT_ACCEPTABLE)
+                .type('text')
+                .send('Invalid player ID!');
+            }
+        });
+
+        /**
+         * Handle a request for /submit/playerID/word by responding with the response of the Word Game
+         * if playerID consists of only alphanumeric characters and word is a single word that consists of only letters;
+         * error 406 otherwise
+         */
+        this.app.get('/submit/:playerID/:word', function(request, response) {
+            const { playerID, word } = request.params;
+            assert(playerID);
+            assert(word);
+            if(/[\w\d]+/.test(playerID) && /[\w]/.test(word)) {
+                response
+                .status(HttpStatus.OK)
+                .type('text')
+                .send(`${playerID} submitted: ${word}`);
+            } else {
+                response
+                .status(HttpStatus.NOT_ACCEPTABLE)
+                .type('text')
+                .send('Invalid playerID or word!');
+            }
+        });
+
+        /**
+         * Handle a request for /playAgain/playerID by responding with the response of the Word Game
+         * if playerID consists of only alphanumeric characters;
+         * error 406 otherwise
+         */
+        this.app.get('/playAgain/:playerID', function(request, response) {
+            const { playerID } = request.params;
+            assert(playerID);
+            if(/[\w\d]+/.test(playerID)) {
+                response
+                .status(HttpStatus.OK)
+                .type('text')
+                .send(`${playerID} has elected to play again!`);
+            } else {
+                response
+                .status(HttpStatus.NOT_ACCEPTABLE)
+                .type('text')
+                .send('Invalid playerID');
+            }
         });
     }
 
