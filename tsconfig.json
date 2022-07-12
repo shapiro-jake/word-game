@@ -1,7 +1,7 @@
 {
     "include": [
       "./src/*.ts",
-      "./test/*.ts",
+      "./test/*.ts"
     ],
     
     "compilerOptions": {
@@ -19,15 +19,4 @@
       "sourceMap": true,
       "outDir": "dist"
     }
-    
-    // "typedocOptions": {
-    //   "entryPoints": [
-    //     "src/Board.ts",
-    //     "src/WebServer.ts"
-    //   ],
-    //   "out": "doc",
-    //   "disableSources": true,
-    //   "excludePrivate": true,
-    //   "readme": "none"
-    // },
   }

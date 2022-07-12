@@ -3,6 +3,7 @@ import express, { Application } from 'express';
 import { Server } from 'http';
 import HttpStatus from 'http-status-codes';
 import { GameState } from './GameState';
+import path from 'path';
 
 
 /**
@@ -31,12 +32,24 @@ export class WebServer {
     
     public constructor(
         private readonly requestedPort: number,
-        private readonly gameState: GameState
+        // private readonly gameState: GameState
     ) {
         this.app = express();
         this.app.use((request, response, next) => {
             response.set('Access-Control-Allow-Origin', '*');
             next();
+        });
+
+        /**
+         * Set '/dist' to static directory from which to serve files
+         */
+        this.app.use(express.static('dist'));
+        
+        /**
+         * Display registration page as initial webpage.
+         */
+        this.app.get('/', function(request, response) {
+            response.sendFile(path.resolve('dist/html/registration.html'));
         });
 
         /** 
@@ -46,17 +59,7 @@ export class WebServer {
         this.app.get('/register/:playerID', function(request, response) {
             const { playerID } = request.params;
             assert(playerID);
-            if(/[\w\d]+/.test(playerID)) {
-                response
-                .status(HttpStatus.OK)
-                .type('text')
-                .send(`Registered ${playerID}`);
-            } else {
-                response
-                .status(HttpStatus.NOT_ACCEPTABLE)
-                .type('text')
-                .send('Invalid player ID!');
-            }
+            response.sendFile(path.resolve('dist/html/play.html'));
         });
 
         /**
@@ -138,4 +141,17 @@ export class WebServer {
         this.server?.close();
         console.log('server stopped');
     }
+}
+
+/**
+ * Start a server
+ */
+ async function main(): Promise<void> {
+    const desiredPort = 8789;
+    const server: WebServer = new WebServer(desiredPort);
+    await server.start();
+}
+
+if (require.main === module) {
+    void main();
 }

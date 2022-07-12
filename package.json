@@ -4,7 +4,9 @@
   "description": "Players guess one word at a time until they reach the same word",
   "main": "index.js",
   "scripts": {
-    "test": "tsc && mocha -r ts-node/register dist/test"
+    "test": "tsc && mocha -r ts-node/register dist/test",
+    "server": "tsc && node --require source-map-support/register dist/src/server.js",
+    "watchify-registration": "mkdir -p dist && npx watchify src/registration.ts -v --debug -p tsify -o dist/registration-bundle.js"
   },
   "mocha": {
     "exit": true
@@ -26,9 +28,11 @@
     "ts-node": "^10.8.1"
   },
   "dependencies": {
+    "cpy-cli": "^4.1.0",
     "express": "^4.18.1",
     "http-status-codes": "^2.2.0",
     "node-fetch": "^2.6.7",
-    "source-map-support": "^0.5.21"
+    "source-map-support": "^0.5.21",
+    "tsify": "^5.0.4"
   }
 }
