@@ -1,10 +1,10 @@
 import assert from 'assert';
-import { GameState } from '../src/GameState';
+import { Match } from '../src/Match';
 import util from 'util';
 
-describe('GameState ADT', () => {
+describe('Match ADT', () => {
     /**
-     * Testing strategy for GameState ADT
+     * Testing strategy for Match ADT
      * 
      *   registerPlayer(playerID)
      *     - playerID: not yet registered, already registered
@@ -19,7 +19,7 @@ describe('GameState ADT', () => {
      */
 
     it('covers a single new player registering', async function() {
-        const gameState: GameState = new GameState();
+        const gameState: Match = new Match();
         const playerID = 'Bob Smithson';
         gameState.registerPlayer(playerID);
         const playersPlaying: Set<string> = new Set([playerID])
@@ -27,7 +27,7 @@ describe('GameState ADT', () => {
     });
 
     it('covers a player who is already registered registering', async function() {
-        const gameState: GameState = new GameState();
+        const gameState: Match = new Match();
         let numberOfPlayers = 0;
         assert.strictEqual(numberOfPlayers, gameState.numberOfPlayers);
 
@@ -41,7 +41,7 @@ describe('GameState ADT', () => {
     });
 
     it('covers a second player registering', async function() {
-        const gameState: GameState = new GameState();
+        const gameState: Match = new Match();
         const playerID1 = 'BobSmithson';
         gameState.registerPlayer(playerID1);
         const playersPlaying: Set<string> = new Set([playerID1])
@@ -54,7 +54,7 @@ describe('GameState ADT', () => {
     });
 
     it('covers a third player registering', async function() {
-        const gameState: GameState = new GameState();
+        const gameState: Match = new Match();
         let numberOfPlayers = 0;
         const playerID1 = 'BobSmithson';
         gameState.registerPlayer(playerID1);
@@ -75,14 +75,14 @@ describe('GameState ADT', () => {
     });
 
     it('covers an unregistered player submitting a word', async function() {
-        const gameState: GameState = new GameState();
+        const gameState: Match = new Match();
         const playerID = 'BobSmithson';
         const word = 'cat';
         assert.throws(() => gameState.submitWord(playerID, word));
     });
 
     it('covers a single registered player submitting a word', async function() {
-        const gameState: GameState = new GameState();
+        const gameState: Match = new Match();
         const playerID = 'BobSmithson';
         const word = 'cat'
         gameState.registerPlayer(playerID);
@@ -90,7 +90,7 @@ describe('GameState ADT', () => {
     });
 
     it('covers two players submitting words that do not match', async function() {
-        const gameState: GameState = new GameState();
+        const gameState: Match = new Match();
         const playerID1 = 'BobSmithson';
         const playerID2 = 'JackJohn';
         gameState.registerPlayer(playerID1);
@@ -107,7 +107,7 @@ describe('GameState ADT', () => {
     });
 
     it('covers two players submitting words that match', async function() {
-        const gameState: GameState = new GameState();
+        const gameState: Match = new Match();
         const playerID1 = 'BobSmithson';
         const playerID2 = 'JackJohn';
         gameState.registerPlayer(playerID1);

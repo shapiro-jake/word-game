@@ -3,13 +3,21 @@ import fetch from 'node-fetch';
 import HttpStatus from 'http-status-codes';
 
 function register(playerIDstring: string) {
-    if (/^[A-Za-z0-9]+$/.test(playerIDstring)) {
-        console.log(`Registering ${playerIDstring}`)
-        const url = `http://localhost:8789/register/${playerIDstring}`;
-        location.href = url;
-    } else {
-        alert(`${playerIDstring} is an invalid username!`);
-    }
+    const req = new XMLHttpRequest()
+    const url = `http://localhost:8789/register/${playerIDstring}`;
+    req.addEventListener('load', function onRegistration() {
+        if (this.status === HttpStatus.NOT_ACCEPTABLE) {
+            alert(`${this.responseText}`);
+        } else {
+            console.log(this.responseText);
+            location.href = this.responseText;
+            console.log(`Registered ${playerIDstring}`);
+        }
+    });
+
+    req.open('GET', url);
+    console.log(`Sending registration request to ${url}`);
+    req.send();
 }
 
 function main() {

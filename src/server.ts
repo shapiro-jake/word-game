@@ -2,7 +2,7 @@ import { assert } from 'console';
 import express, { Application } from 'express';
 import { Server } from 'http';
 import HttpStatus from 'http-status-codes';
-import { GameState } from './GameState';
+import { Match } from './Match';
 import path from 'path';
 
 
@@ -19,6 +19,7 @@ export class WebServer {
     private readonly app: Application;
     private server: Server|undefined;
 
+
     // Abstraction Function
     //     AF(app, server, requestedPort, gameState) = an HTTP server 'server' running on an Express Application 'app' on port 'requestedPort'
     //                                                 that allows two players to play the Word Game with game state 'gameState
@@ -32,7 +33,7 @@ export class WebServer {
     
     public constructor(
         private readonly requestedPort: number,
-        // private readonly gameState: GameState
+        private readonly match: Match = new Match()
     ) {
         this.app = express();
         this.app.use((request, response, next) => {
@@ -59,6 +60,37 @@ export class WebServer {
         this.app.get('/register/:playerID', function(request, response) {
             const { playerID } = request.params;
             assert(playerID);
+
+            // Check that playerID consists of only alphanumeric characters
+            if (!/^[A-Za-z0-9]+$/.test(playerID)) {
+                response
+                    .status(HttpStatus.NOT_ACCEPTABLE)
+                    .type('text')
+                    .send(`${playerID} is an invalid username!`);
+            } else {
+                // Try to register the player
+                try {
+                    // Successful registration
+                    match.registerPlayer(playerID);
+                    console.log('HERE')
+                    response
+                        .status(HttpStatus.OK)
+                        .type('text')
+                        .send(`http://localhost:${requestedPort}/play`);
+                } catch (e) {
+                    // PlayerID is already registered or match is full
+                    response
+                        .status(HttpStatus.NOT_ACCEPTABLE)
+                        .type('text')
+                        .send(`${playerID} is already registered, or there are already two people playing!`);
+                }
+            }
+        });
+
+        /**
+         * Display play page after registration
+         */
+         this.app.get('/play', function(request, response) {
             response.sendFile(path.resolve('dist/html/play.html'));
         });
 

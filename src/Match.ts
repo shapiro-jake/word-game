@@ -2,9 +2,9 @@ import { Player } from './Player';
 
 enum State {REGISTERED, SUBMITTED, VICTORIOUS}
 /**
- * An object representing a Word Game of exactly 2 players with different usernames to play
+ * A match of Word Game between 2 players with different usernames
  */
-export class GameState {
+export class Match {
     private players: Map<string, Player> = new Map();
     private numberOfGuesses: number = 0;
 
@@ -13,11 +13,11 @@ export class GameState {
     }
 
     // Abstraction Function
-    //     AF(players, numberOfGuesses) = a game of the Word Game where players 'players' are playing
+    //     AF(players, numberOfGuesses) = a match of  Word Game where players 'players' are playing
     //                                    with the state and word of player 'playerID' in players.get(playerID)
     // Rep Invariant
     //     - number of players in 'players' is <= 2
-    //     - numberOfGuess >= 0
+    //     - numberOfGuesses >= 0
     // Safety From Rep Exposure
     //     - 
 
@@ -28,13 +28,23 @@ export class GameState {
     }
 
     /**
-     * Register a new player to play this Word Game, required to consist of only alphanumeric characters
+     * Register a new player to play this Word Game
+     * 'playerID' required to consist of only alphanumeric characters
      * Modifies GameState to include the new player
      * 
      * @param playerID the ID of a new player that wants to play this Word Game
      * @throws if a player with playerID is already registered or is more than the second player to register
      */
     public registerPlayer(playerID: string): void {
+        if (this.numberOfPlayers === 2) {
+            throw Error;
+        }
+
+        if (this.alreadyRegistered(playerID)) {
+            throw Error;
+        }
+
+        this.players.set(playerID, new Player(playerID));
     }
 
     /**
@@ -69,5 +79,15 @@ export class GameState {
      */
     public get playerIDs(): Set<string> {
         return new Set();
+    }
+
+    /**
+     * 
+     * @param playerID the playerID being determined if it is already registered
+     * @returns true iff player with ID 'playerID' is already registered in this match
+     *          false otherwise
+     */
+    private alreadyRegistered(playerID: string) {
+        return playerID in this.playerIDs;
     }
 }
