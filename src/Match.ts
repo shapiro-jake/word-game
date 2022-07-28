@@ -1,12 +1,15 @@
 import { Player } from './Player';
+import { Deferred } from './deferredGuess';
+import { assert } from 'console';
 
 enum State {REGISTERED, SUBMITTED, VICTORIOUS}
 /**
  * A match of Word Game between 2 players with different usernames
  */
 export class Match {
-    private players: Map<string, Player> = new Map();
+    private players: Set<string> = new Set();
     private numberOfGuesses: number = 0;
+    private guesses: Map<string, { guess: string, deferredGuess: Deferred<void> }> = new Map();
 
     public constructor() {
         this.checkRep();
@@ -43,8 +46,7 @@ export class Match {
         if (this.alreadyRegistered(playerID)) {
             throw Error;
         }
-
-        this.players.set(playerID, new Player(playerID));
+        this.players.add(playerID);
     }
 
     /**
@@ -55,13 +57,65 @@ export class Match {
      * @returns {boolean} a promise that resolves, when both players submit words, to
      *                    true iff both players have submitted words that match
      *                    and false otherwise
-     * @throws if player is not registered or there are not two people playing
+     * @throws if player is not registered
      */
-    public submitWord(playerID: string, word: string): Promise<boolean> {
-        return new Promise((resolve, reject) => {
-            resolve(true);
-        })
+    public submitWord(playerID: string, word: string): Promise<void> {
+        if (!this.alreadyRegistered(playerID)) {
+            throw Error;
+        }
+
+        const guessPromise = new Deferred<void>();
+        this.guesses.set(playerID, { guess: word, deferredGuess: guessPromise});
+        this.checkForMatch();
+        return guessPromise.promise;
     }
+
+    /**
+     * Check if the guesses currently submitted constitute a match
+     * 
+     * If no guess or only 1 guess is submitted, does nothing
+     * If two guesses are submitted and they do not constitute a match, resolves the deferred promises
+     *     associated with the guesses, prints 'LOSER!', and returns false
+     * If two guesses are submitted and they not constitute a match, resolves the deferred promises
+     *     associated with the guesses, prints 'VICTORY!', and returns true
+     * 
+     * @returns {boolean} returns true iff there are two play
+     */
+    private checkForMatch(): boolean {
+        // If the number of players is not 2, there cannot be a match
+        if (this.numberOfPlayers !== 2) {
+            return false;
+        }
+
+        // Get the guesses and associated promises from each player
+        const playerIDs: Array<string> = new Array(...this.playerIDs);
+        const player1ID: string = playerIDs[0] ?? '';
+        const player2ID: string = playerIDs[1] ?? '';
+
+        const player1Guess: string = this.guesses.get(player1ID)?.guess ?? '';
+        const player2Guess: string = this.guesses.get(player2ID)?.guess ?? '';
+
+        const player1Promise: Deferred<void> = this.guesses.get(player1ID)?.deferredGuess ?? new Deferred<void>();
+        const player2Promise: Deferred<void> = this.guesses.get(player2ID)?.deferredGuess ?? new Deferred<void>();
+
+        // Clear the guesses
+        const emptyGuess: { guess: string, deferredGuess: Deferred<void>} = { guess: '', deferredGuess: new Deferred<void>()};
+        this.guesses.set(player1ID, emptyGuess);
+        this.guesses.set(player2ID, emptyGuess);
+
+        // Check for a match
+        // If two guess are equal, then there is a match
+        if (player1Guess === player2Guess) {
+            // WIN
+            console.log('VICTORY!');
+            return true;
+        // Otherwise, there is no match
+        } else {
+            console.log('LOSER!');
+            return false;
+        }
+    }
+
 
     /**
      * Get the number of players playing this Word Game
@@ -78,7 +132,7 @@ export class Match {
      * @returns {Set<string>} a set containing the IDs of the players playing this game
      */
     public get playerIDs(): Set<string> {
-        return new Set();
+        return new Set(this.players);
     }
 
     /**
@@ -88,6 +142,6 @@ export class Match {
      *          false otherwise
      */
     private alreadyRegistered(playerID: string) {
-        return playerID in this.playerIDs;
+        return playerID in this.players;
     }
 }

@@ -4,6 +4,8 @@ import { Server } from 'http';
 import HttpStatus from 'http-status-codes';
 import { Match } from './Match';
 import path from 'path';
+import bodyParser from 'body-parser';
+import * as FormData from 'form-data';
 
 
 /**
@@ -45,46 +47,52 @@ export class WebServer {
          * Set '/dist' to static directory from which to serve files
          */
         this.app.use(express.static('dist'));
+        this.app.set('view engine', 'ejs');
+        this.app.use(bodyParser.urlencoded());
+        this.app.use(bodyParser.json());
         
         /**
          * Display registration page as initial webpage.
          */
         this.app.get('/', function(request, response) {
-            response.sendFile(path.resolve('dist/html/registration.html'));
+            response.sendFile(path.resolve('/dist/registration.html'));
         });
 
         /** 
          * Handle a request for /register/playerID by responding with the response of the Word Game
          * if playerID consists of only alphanumeric characters; error 406 otherwise.
          */
-        this.app.get('/register/:playerID', function(request, response) {
-            const { playerID } = request.params;
-            assert(playerID);
+        this.app.post('/register', function(request, response) {
+            console.log(request.body);
+            console.log(request.body.PlayerID);
+            response.send(request.body.PlayerID);
+            // const { playerID } = request.params;
+            // assert(playerID);
 
-            // Check that playerID consists of only alphanumeric characters
-            if (!/^[A-Za-z0-9]+$/.test(playerID)) {
-                response
-                    .status(HttpStatus.NOT_ACCEPTABLE)
-                    .type('text')
-                    .send(`${playerID} is an invalid username!`);
-            } else {
-                // Try to register the player
-                try {
-                    // Successful registration
-                    match.registerPlayer(playerID);
-                    console.log('HERE')
-                    response
-                        .status(HttpStatus.OK)
-                        .type('text')
-                        .send(`http://localhost:${requestedPort}/play`);
-                } catch (e) {
-                    // PlayerID is already registered or match is full
-                    response
-                        .status(HttpStatus.NOT_ACCEPTABLE)
-                        .type('text')
-                        .send(`${playerID} is already registered, or there are already two people playing!`);
-                }
-            }
+            // // Check that playerID consists of only alphanumeric characters
+            // if (!/^[A-Za-z0-9]+$/.test(playerID)) {
+            //     response
+            //         .status(HttpStatus.NOT_ACCEPTABLE)
+            //         .type('text')
+            //         .send(`${playerID} is an invalid username!`);
+            // } else {
+            //     // Try to register the player
+            //     try {
+            //         // Successful registration
+            //         match.registerPlayer(playerID);
+            //         response.render('play', {playerID: playerID});
+            //         // response
+            //         //     .status(HttpStatus.OK)
+            //         //     .type('text')
+            //         //     .send(`http://localhost:${requestedPort}/play`);
+            //     } catch (e) {
+            //         // PlayerID is already registered or match is full
+            //         response
+            //             .status(HttpStatus.NOT_ACCEPTABLE)
+            //             .type('text')
+            //             .send(`${playerID} is already registered, or there are already two people playing!`);
+            //     }
+            // }
         });
 
         /**
@@ -148,8 +156,8 @@ export class WebServer {
             this.server = this.app.listen(this.requestedPort, () => {
                 console.log('server now listening at', this.port);
                 resolve();
-            })
-        })
+            });
+        });
     }
 
     /**

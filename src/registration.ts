@@ -9,8 +9,6 @@ function register(playerIDstring: string) {
         if (this.status === HttpStatus.NOT_ACCEPTABLE) {
             alert(`${this.responseText}`);
         } else {
-            console.log(this.responseText);
-            location.href = this.responseText;
             console.log(`Registered ${playerIDstring}`);
         }
     });
@@ -21,12 +19,12 @@ function register(playerIDstring: string) {
 }
 
 function main() {
-    const registerButton: HTMLButtonElement = document.getElementById("registerButton") as HTMLButtonElement ?? assert.fail('missing register button')
-    registerButton.addEventListener('click', function() {
-        const playerID: HTMLInputElement = document.getElementById("PlayerID") as HTMLInputElement ?? assert.fail('missing playerID');
-        const playerIDstring: string = playerID.value;
-        register(playerIDstring);
-    });
+    // const registerButton: HTMLButtonElement = document.getElementById("registerButton") as HTMLButtonElement ?? assert.fail('missing register button')
+    // registerButton.addEventListener('click', function() {
+    //     const playerID: HTMLInputElement = document.getElementById("PlayerID") as HTMLInputElement ?? assert.fail('missing playerID');
+    //     const playerIDstring: string = playerID.value;
+    //     register(playerIDstring);
+    // });
 }
 
 void main();
