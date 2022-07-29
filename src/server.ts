@@ -3,9 +3,8 @@ import express, { Application } from 'express';
 import { Server } from 'http';
 import HttpStatus from 'http-status-codes';
 import { Match } from './Match';
-import path from 'path';
 import bodyParser from 'body-parser';
-import * as FormData from 'form-data';
+import asyncHandler from 'express-async-handler';
 
 
 /**
@@ -20,6 +19,9 @@ export class WebServer {
     
     private readonly app: Application;
     private server: Server|undefined;
+    private readonly matches: Map<string, Match> = new Map();
+    private nextMatch: Match = new Match();
+
 
 
     // Abstraction Function
@@ -35,7 +37,6 @@ export class WebServer {
     
     public constructor(
         private readonly requestedPort: number,
-        private readonly match: Match = new Match()
     ) {
         this.app = express();
         this.app.use((request, response, next) => {
@@ -48,58 +49,60 @@ export class WebServer {
          */
         this.app.use(express.static('dist'));
         this.app.set('view engine', 'ejs');
-        this.app.use(bodyParser.urlencoded());
         this.app.use(bodyParser.json());
+        this.app.use(bodyParser.urlencoded({ extended: true }));
         
         /**
          * Display registration page as initial webpage.
          */
-        this.app.get('/', function(request, response) {
-            response.sendFile(path.resolve('/dist/registration.html'));
+        this.app.get('/', (request, response) => {
+            response.render('registration');
         });
 
         /** 
          * Handle a request for /register/playerID by responding with the response of the Word Game
          * if playerID consists of only alphanumeric characters; error 406 otherwise.
          */
-        this.app.post('/register', function(request, response) {
-            console.log(request.body);
-            console.log(request.body.PlayerID);
-            response.send(request.body.PlayerID);
-            // const { playerID } = request.params;
-            // assert(playerID);
+        this.app.post('/register', (request, response) => {
+            const playerID = request.body.PlayerID;
+            assert(playerID);
 
-            // // Check that playerID consists of only alphanumeric characters
-            // if (!/^[A-Za-z0-9]+$/.test(playerID)) {
-            //     response
-            //         .status(HttpStatus.NOT_ACCEPTABLE)
-            //         .type('text')
-            //         .send(`${playerID} is an invalid username!`);
-            // } else {
-            //     // Try to register the player
-            //     try {
-            //         // Successful registration
-            //         match.registerPlayer(playerID);
-            //         response.render('play', {playerID: playerID});
-            //         // response
-            //         //     .status(HttpStatus.OK)
-            //         //     .type('text')
-            //         //     .send(`http://localhost:${requestedPort}/play`);
-            //     } catch (e) {
-            //         // PlayerID is already registered or match is full
-            //         response
-            //             .status(HttpStatus.NOT_ACCEPTABLE)
-            //             .type('text')
-            //             .send(`${playerID} is already registered, or there are already two people playing!`);
-            //     }
-            // }
-        });
+            // Check that playerID consists of only alphanumeric characters
+            if (!/^[A-Za-z0-9]+$/.test(playerID)) {
+                response
+                    .status(HttpStatus.NOT_ACCEPTABLE)
+                    .type('text')
+                    .send(`${playerID} is an invalid username!`);
 
-        /**
-         * Display play page after registration
-         */
-         this.app.get('/play', function(request, response) {
-            response.sendFile(path.resolve('dist/html/play.html'));
+            // playerID is valid but already playing a match
+            } else if (this.matches.get(playerID) !== undefined) {
+                response
+                    .status(HttpStatus.NOT_ACCEPTABLE)
+                    .type('text')
+                    .send(`${playerID} is already registered in a match!`);
+            // playerID is valid and is not already registered
+            } else {
+                // Try to register the player
+                try {
+                    // Successful registration
+                    this.nextMatch.registerPlayer(playerID);
+                    this.matches.set(playerID, this.nextMatch);
+
+                    // Match is full, so create a new match for which players can register
+                    if (this.nextMatch.numberOfPlayers === 2) {
+                        this.nextMatch = new Match();
+                    }
+                    console.log(this.matches.get(playerID)?.toString());
+                    response.render('play', {playerID: playerID});
+
+                // Failed registration - either match is already full or player is already registered in this match
+                } catch (e) {
+                    response
+                        .status(HttpStatus.NOT_ACCEPTABLE)
+                        .type('text')
+                        .send(`${playerID} is already registered, or there are already two people playing!`);
+                }
+            }
         });
 
         /**
@@ -107,43 +110,55 @@ export class WebServer {
          * if playerID consists of only alphanumeric characters and word is a single word that consists of only letters;
          * error 406 otherwise
          */
-        this.app.get('/submit/:playerID/:word', function(request, response) {
+        this.app.get('/submit/:playerID/:word', asyncHandler(async (request, response) => {
             const { playerID, word } = request.params;
             assert(playerID);
             assert(word);
-            if(/[\w\d]+/.test(playerID) && /[\w]/.test(word)) {
-                response
-                .status(HttpStatus.OK)
-                .type('text')
-                .send(`${playerID} submitted: ${word}`);
-            } else {
-                response
-                .status(HttpStatus.NOT_ACCEPTABLE)
-                .type('text')
-                .send('Invalid playerID or word!');
+            if (typeof playerID === 'string' && typeof word === 'string') {
+                if(/[\w\d]+/.test(playerID) && /[\w]/.test(word)) {
+                    const playersMatch: Match = this.matches.get(playerID) ?? new Match();
+                    await playersMatch.submitWord(playerID, word);
+                    const { result, guess1, guess2 } = playersMatch.checkForMatch();;
+                    if (result) {
+                        response
+                            .status(HttpStatus.OK)
+                            .type('text')
+                            .send(`${playerID} submitted ${word} and it's a match! Congratulations!`);
+                    } else {
+                        response
+                            .status(HttpStatus.OK)
+                            .type('text')
+                            .send(`Womp womp, you guys did not submit a match. The two guess were \"${guess1}\" and \"${guess2}\"`);
+                    }
+                } else {
+                    response
+                        .status(HttpStatus.NOT_ACCEPTABLE)
+                        .type('text')
+                        .send('Invalid playerID or word!');
+                }
             }
-        });
+        }));
 
-        /**
-         * Handle a request for /playAgain/playerID by responding with the response of the Word Game
-         * if playerID consists of only alphanumeric characters;
-         * error 406 otherwise
-         */
-        this.app.get('/playAgain/:playerID', function(request, response) {
-            const { playerID } = request.params;
-            assert(playerID);
-            if(/[\w\d]+/.test(playerID)) {
-                response
-                .status(HttpStatus.OK)
-                .type('text')
-                .send(`${playerID} has elected to play again!`);
-            } else {
-                response
-                .status(HttpStatus.NOT_ACCEPTABLE)
-                .type('text')
-                .send('Invalid playerID');
-            }
-        });
+        // /**
+        //  * Handle a request for /playAgain/playerID by responding with the response of the Word Game
+        //  * if playerID consists of only alphanumeric characters;
+        //  * error 406 otherwise
+        //  */
+        // this.app.get('/playAgain/:playerID', (request, response) => {
+        //     const { playerID } = request.params;
+        //     assert(playerID);
+        //     if(/[\w\d]+/.test(playerID)) {
+        //         response
+        //         .status(HttpStatus.OK)
+        //         .type('text')
+        //         .send(`${playerID} has elected to play again!`);
+        //     } else {
+        //         response
+        //         .status(HttpStatus.NOT_ACCEPTABLE)
+        //         .type('text')
+        //         .send('Invalid playerID');
+        //     }
+        // });
     }
 
     /**

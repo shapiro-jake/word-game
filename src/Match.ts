@@ -39,7 +39,7 @@ export class Match {
         assert(this.numberOfGuesses >= 0);
         for (const playerID of this.players) {
             const guess:string = this.guesses.get(playerID) ?? '';
-            assert(/[\w]/.test(guess));
+            assert(/[\w]/.test(guess) || guess === '');
         }
         assert(this.deferredGuesses.length <= 2);
     }
@@ -62,9 +62,10 @@ export class Match {
             this.checkRep();
             throw Error;
         }
-
-        this.checkRep();
+        
         this.players.add(playerID);
+        this.guesses.set(playerID, '');
+        this.checkRep();
     }
 
     /**
@@ -106,9 +107,10 @@ export class Match {
      *     associated with the guesses, prints 'VICTORY!', and returns true
      * 
      * @returns {boolean} returns true iff the two submitted words are a match
+     * @returns {string} return the two guesses
      * @throws {error} if there are not two submitted words
      */
-    public checkForMatch(): boolean {
+    public checkForMatch(): { result: boolean, guess1: string, guess2: string } {
         // If the number of players is not 2, there cannot be a match
         if (this.numberOfSubmittedWords !== 2) {
             this.checkRep();
@@ -131,34 +133,32 @@ export class Match {
         this.guesses.set(player2ID, '');
 
         // Check for a match
+        let result: boolean = false;
         // If two guess are equal, then there is a match
         if (player1Guess === player2Guess) {
-            this.checkRep();
-            return true;
-        // Otherwise, there is no match
-        } else {
-            this.checkRep();
-            return false;
+            const result = true;
         }
-    }
 
-
-    /**
-     * Get the number of players playing this Word Game
-     * 
-     * @returns {number} the number of players playing this Word Game
-     */
-    public get numberOfPlayers(): number {
-        return Object.keys(this.players).length;
+        this.checkRep();
+        return { result: result, guess1: player1Guess, guess2: player2Guess };
     }
 
     /**
-     * Get the IDs of all the players playing this game
+     * Convert this match into a string
      * 
-     * @returns {Set<string>} a set containing the IDs of the players playing this game
+     * @returns a string describing the number of player in this match,
+     *              how many guesses they've submitted,
+     *              and their current guesses.
      */
-    public get playerIDs(): Set<string> {
-        return new Set(this.players);
+    public toString(): string {
+        let output = '';
+        output += `This game has ${this.numberOfPlayers} players playing.\n`;
+        output += `They have guessed ${this.numberOfGuesses} times.\n`;
+        output += `Their current guesses are:\n`;
+        for (const playerID of this.playerIDs) {
+            output += `    ${playerID}: ${this.guesses.get(playerID)}\n`;
+        }
+        return output;
     }
 
     /**
@@ -168,8 +168,26 @@ export class Match {
      * @returns {boolean} true iff player with ID 'playerID' is already registered in this match
      *          false otherwise
      */
-    private alreadyRegistered(playerID: string): boolean {
+     private alreadyRegistered(playerID: string): boolean {
         return playerID in this.players;
+    }
+
+    /**
+     * Get the number of players playing this Word Game
+     * 
+     * @returns {number} the number of players playing this Word Game
+     */
+    public get numberOfPlayers(): number {
+        return this.players.size;
+    }
+
+    /**
+     * Get the IDs of all the players playing this game
+     * 
+     * @returns {Set<string>} a set containing the IDs of the players playing this game
+     */
+    public get playerIDs(): Set<string> {
+        return new Set(this.players);
     }
 
     /**

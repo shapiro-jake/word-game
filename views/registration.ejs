@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Word Game</title>
+        <style>
+            .main {
+                text-align: center;
+            }
+        </style>
+    </head>
+    <body>
+    <div class="main">
+        <h1>Word Game!</h1>
+        <form action="/register" method="POST">
+            <label for="PlayerID">Enter a username to play!</label><br>
+            <input type="text" id="PlayerID" name="PlayerID" value="BobSmithson" onfocus="if (this.value=='BobSmithson') this.value='';"></input><br>
+            <input type="submit" value="Register!"></input>
+            <p>*username must consist of only alphanumeric characters</p>
+        </form>
+    </div>
+    </body>
+</html>
