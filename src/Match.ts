@@ -85,9 +85,8 @@ export class Match {
         const guessPromise = new Deferred<void>();
         this.guesses.set(playerID, word);
         this.deferredGuesses.push(guessPromise);
-
         if (this.deferredGuesses.length === 2) {
-            while (this.numberOfSubmittedWords > 0) {
+            while (this.deferredGuesses.length > 0) {
                 this.deferredGuesses.pop()?.resolve();
             }
         }
@@ -99,6 +98,7 @@ export class Match {
 
     /**
      * Check if the guesses currently submitted constitute a match
+     * Requires that two players have submitted valid guesses
      * 
      * Requires that the number of submitted words is exactly 2
      * If two guesses are submitted and they do not constitute a match, resolves the deferred promises
@@ -111,11 +111,11 @@ export class Match {
      * @throws {error} if there are not two submitted words
      */
     public checkForMatch(): { result: boolean, guess1: string, guess2: string } {
-        // If the number of players is not 2, there cannot be a match
-        if (this.numberOfSubmittedWords !== 2) {
-            this.checkRep();
-            throw Error;
-        }
+        // // If the number of players is not 2, there cannot be a match
+        // if (this.numberOfSubmittedWords !== 2) {
+        //     this.checkRep();
+        //     throw Error;
+        // }
 
         // If 2 submitted words, then both players have guessed
         this.numberOfGuesses += 1;
@@ -169,7 +169,7 @@ export class Match {
      *          false otherwise
      */
      private alreadyRegistered(playerID: string): boolean {
-        return playerID in this.players;
+        return this.players.has(playerID);
     }
 
     /**
@@ -190,12 +190,12 @@ export class Match {
         return new Set(this.players);
     }
 
-    /**
-     * Get the number of submitted words
-     * 
-     * @returns {int} the number of submissions
-     */
-    private get numberOfSubmittedWords(): number {
-        return this.deferredGuesses.length;
-    }
+    // /**
+    //  * Get the number of submitted words
+    //  * 
+    //  * @returns {int} the number of submissions
+    //  */
+    // private get numberOfSubmittedWords(): number {
+    //     return this.deferredGuesses.length;
+    // }
 }

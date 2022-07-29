@@ -110,20 +110,21 @@ export class WebServer {
          * if playerID consists of only alphanumeric characters and word is a single word that consists of only letters;
          * error 406 otherwise
          */
-        this.app.get('/submit/:playerID/:word', asyncHandler(async (request, response) => {
-            const { playerID, word } = request.params;
+        this.app.post('/submit', asyncHandler(async (request, response) => {
+            const { playerID, guess } = request.body;
+            console.log(request.body);
             assert(playerID);
-            assert(word);
-            if (typeof playerID === 'string' && typeof word === 'string') {
-                if(/[\w\d]+/.test(playerID) && /[\w]/.test(word)) {
+            assert(guess);
+            if (typeof playerID === 'string' && typeof guess === 'string') {
+                if(/[\w\d]+/.test(playerID) && /[\w]/.test(guess)) {
                     const playersMatch: Match = this.matches.get(playerID) ?? new Match();
-                    await playersMatch.submitWord(playerID, word);
+                    await playersMatch.submitWord(playerID, guess);
                     const { result, guess1, guess2 } = playersMatch.checkForMatch();;
                     if (result) {
                         response
                             .status(HttpStatus.OK)
                             .type('text')
-                            .send(`${playerID} submitted ${word} and it's a match! Congratulations!`);
+                            .send(`${playerID} submitted ${guess} and it's a match! Congratulations!`);
                     } else {
                         response
                             .status(HttpStatus.OK)
