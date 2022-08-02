@@ -6,7 +6,8 @@
   "scripts": {
     "test": "tsc && mocha -r ts-node/register dist/test",
     "server": "tsc && node --require source-map-support/register dist/src/server.js",
-    "watchify-registration": "mkdir -p dist && npx watchify src/registration.ts -v --debug -p tsify -o dist/registration-bundle.js"
+    "watchify-registration": "mkdir -p dist && npx watchify src/registration.ts -v --debug -p tsify -o dist/registration-bundle.js",
+    "watchify-play": "mkdir -p dist && npx watchify src/play.ts -v --debug -p tsify -o dist/play-bundle.js"
   },
   "mocha": {
     "exit": true

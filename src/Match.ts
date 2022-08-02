@@ -5,10 +5,12 @@ import { Deferred } from './deferredGuess';
  * A match of Word Game between 2 players with different usernames
  */
 export class Match {
-    private players: Set<string> = new Set();
+    private readonly players: Set<string> = new Set();
+    private readonly waitingPlayers: Array<Deferred<void>> = new Array();
     private numberOfGuesses: number = 0;
-    private guesses: Map<string, string> = new Map();
-    private deferredGuesses: Array<Deferred<void>> = new Array();
+    private readonly guesses: Map<string, string> = new Map();
+    private readonly previousGuesses: Set<string> = new Set();
+    private readonly deferredGuesses: Array<Deferred<void>> = new Array();
 
     public constructor() {
         this.checkRep();
@@ -16,10 +18,12 @@ export class Match {
 
     // Abstraction Function
     //     AF(players, numberOfGuesses,
-    //        guesses, deferredGuesses) = a match of  Word Game where players 'players' are playing,
-    //                                    have made 'numberOfGuesses' guesses,
-    //                                    with the gussed of player 'playerID' in guesses.get(playerID),
-    //                                    and 'deferredGuesses' guesses to be checked when both players have submitted a word
+    //        guesses, previousGuesses, 
+    //        deferredGuesses) = a match of  Word Game where players 'players' are playing,
+    //                           have made 'numberOfGuesses' guesses,
+    //                           with the gussed of player 'playerID' in guesses.get(playerID),
+    //                           with 'previousGuesses' as the guesses that have been previously submitted,
+    //                           and 'deferredGuesses' guesses to be checked when both players have submitted a word
     // Rep Invariant
     //     - number of players in 'players' is <= 2 with each player having an ID consisting of only alphanumeric characters
     //     - numberOfGuesses >= 0
@@ -32,7 +36,7 @@ export class Match {
     //           and return either a promise that resolves to void, an immutable type, or nothing
 
     /**
-     * 
+     * Ensure the rep invariant
      */
     private checkRep() {
         assert(this.players.size <= 2);
@@ -50,9 +54,11 @@ export class Match {
      * Modifies GameState to include the new player
      * 
      * @param playerID the ID of a new player that wants to play this Word Game
+     * 
+     * @returns {Promise<void>} a promise that resolves when this match has 2 players registered to play
      * @throws if a player with playerID is already registered or is more than the second player to register
      */
-    public registerPlayer(playerID: string): void {
+    public registerPlayer(playerID: string): Promise<void> {
         if (this.numberOfPlayers === 2) {
             this.checkRep();
             throw Error;
@@ -65,26 +71,40 @@ export class Match {
         
         this.players.add(playerID);
         this.guesses.set(playerID, '');
+
+        const waitingPlayer: Deferred<void> = new Deferred();
+        this.waitingPlayers.push(waitingPlayer);
+
+        if (this.waitingPlayers.length === 2) {
+            while (this.waitingPlayers.length > 0) {
+                this.waitingPlayers.pop()?.resolve();
+            }
+        }
+
         this.checkRep();
+        return waitingPlayer.promise;
     }
 
     /**
      * Have a player submit a word
+     * Requires that guess is not in 'this.previousGuesses'
      * 
      * @param playerID the ID of the player who submitted a word
      * @param word the word a player submitted, required to be a single word consisting of only letters
      * @returns {Promise<void>} a promise that resolves when both players submit words
      * @throws if player is not registered
      */
-    public submitWord(playerID: string, word: string): Promise<void> {
+    public submitWord(playerID: string, guess: string): Promise<void> {
         if (!this.alreadyRegistered(playerID)) {
             this.checkRep();
             throw Error;
         }
 
-        const guessPromise = new Deferred<void>();
-        this.guesses.set(playerID, word);
-        this.deferredGuesses.push(guessPromise);
+        const waitingGuess = new Deferred<void>();
+        this.guesses.set(playerID, guess);
+        this.numberOfGuesses += 1;
+
+        this.deferredGuesses.push(waitingGuess);
         if (this.deferredGuesses.length === 2) {
             while (this.deferredGuesses.length > 0) {
                 this.deferredGuesses.pop()?.resolve();
@@ -92,7 +112,7 @@ export class Match {
         }
 
         this.checkRep();
-        return guessPromise.promise;
+        return waitingGuess.promise;
     }
 
 
@@ -110,16 +130,7 @@ export class Match {
      * @returns {string} return the two guesses
      * @throws {error} if there are not two submitted words
      */
-    public checkForMatch(): { result: boolean, guess1: string, guess2: string } {
-        // // If the number of players is not 2, there cannot be a match
-        // if (this.numberOfSubmittedWords !== 2) {
-        //     this.checkRep();
-        //     throw Error;
-        // }
-
-        // If 2 submitted words, then both players have guessed
-        this.numberOfGuesses += 1;
-
+    public checkForMatch(): { match: boolean, guess1: string, guess2: string } {
         // Get the guesses and associated promises from each player
         const playerIDs: Array<string> = new Array(...this.playerIDs);
         const player1ID: string = playerIDs[0] ?? '';
@@ -127,20 +138,17 @@ export class Match {
 
         const player1Guess: string = this.guesses.get(player1ID) ?? '';
         const player2Guess: string = this.guesses.get(player2ID) ?? '';
-
-        // Clear the guesses
-        this.guesses.set(player1ID, '');
-        this.guesses.set(player2ID, '');
+        this.previousGuesses.add(player1Guess).add(player2Guess);
 
         // Check for a match
         let result: boolean = false;
         // If two guess are equal, then there is a match
         if (player1Guess === player2Guess) {
-            const result = true;
+            result = true;
         }
 
         this.checkRep();
-        return { result: result, guess1: player1Guess, guess2: player2Guess };
+        return { match: result, guess1: player1Guess, guess2: player2Guess };
     }
 
     /**
@@ -190,12 +198,42 @@ export class Match {
         return new Set(this.players);
     }
 
-    // /**
-    //  * Get the number of submitted words
-    //  * 
-    //  * @returns {int} the number of submissions
-    //  */
-    // private get numberOfSubmittedWords(): number {
-    //     return this.deferredGuesses.length;
-    // }
+    /**
+     * Get the guesses that were previously submitted in this match
+     * 
+     * @return {Set<string>} a set containing the previous guesses of this match
+     */
+    public get getPreviousGuesses(): Set<string> {
+        return new Set(this.previousGuesses);
+    }
+
+    /**
+     * Get the number of guesses in this match
+     * 
+     * @return {number} the number of guesses so far in this match
+     */
+    public get getNumberOfGuesses(): number {
+        return this.numberOfGuesses / 2;
+    }
+
+    /**
+     * Get the ID of the opponent of a given player
+     * @param playerID the player who's opponent to get
+     * 
+     * @returns {string} the ID of the other player in this Match, or void if only 'playerID' is playing
+     * @throws {error} if 'playerID' is not registered in this Match
+     */
+    public getOpponent(playerID: string): string {
+        if (!this.alreadyRegistered(playerID)) {
+            throw Error;
+        }
+
+        for (const ID of this.playerIDs) {
+            if (ID !== playerID) {
+                return ID;
+            }
+        }
+
+        return '';
+    }
 }
