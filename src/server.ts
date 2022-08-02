@@ -53,10 +53,10 @@ export class WebServer {
         this.app.use(bodyParser.urlencoded({ extended: true }));
         
         /**
-         * Display registration page as initial webpage.
+         * Display play.html page as initial webpage.
          */
         this.app.get('/', (request, response) => {
-            response.sendFile(path.resolve('dist/html/play.html'));
+            response.sendFile(path.resolve('html/play.html'));
         });
 
         /** 
@@ -82,72 +82,71 @@ export class WebServer {
                     .send(`${playerID} is already registered in a match!`);
             // playerID is valid and is not already registered
             } else {
-                // Try to register the player
-                try {
-                    // Successful registration
-                    this.matches.set(playerID, this.nextMatch);
-                    await this.nextMatch.registerPlayer(playerID);
+                // Successful registration
+                this.matches.set(playerID, this.nextMatch);
+                await this.nextMatch.registerPlayer(playerID);
 
-                    // Match is full, so create a new match for which players can register
-                    if (this.nextMatch.numberOfPlayers === 2) {
-                        this.nextMatch = new Match();
-                    }
-
-                    const opponent: string = this.matches.get(playerID)?.getOpponent(playerID) ?? '';
-                    console.log('Successfully registered!');
-                    response
-                        .status(HttpStatus.OK)
-                        .json({opponent: opponent});
-                    
-
-                // Failed registration - either match is already full or player is already registered in this match
-                } catch (e) {
-                    response
-                        .status(HttpStatus.NOT_ACCEPTABLE)
-                        .type('text')
-                        .send(`${playerID} is already registered or there are already two people playing!`);
+                // Match is full, so create a new match for which players can register
+                if (this.nextMatch.numberOfPlayers === 2) {
+                    this.nextMatch = new Match();
                 }
+
+                // At this point, match of playerID will have 2 players
+                const opponent: string = this.matches.get(playerID)?.getOpponent(playerID) ?? '';
+                response
+                    .status(HttpStatus.OK)
+                    .json({opponent: opponent});
             }
         }));
 
         /**
-         * Handle a request for /submit/playerID/word by responding with the response of the Word Game
-         * if playerID consists of only alphanumeric characters and word is a single word that consists of only letters;
+         * Submit word 'guess' for player with ID 'playerID'
+         * 
+         * Handle a request for /submit/playerID/guess by responding with the response of the Word Game
+         * if 'guess' is a single word that consists of only letters and has not been guess yet;
          * error 406 otherwise
+         * 
+         * Requires that playerID is already registered in a match
          */
         this.app.get('/submit/:playerID/:guess', asyncHandler(async (request, response) => {
-            const playerID: string | undefined = request.params['playerID'];
-            let guess: string | undefined = request.params['guess'];
+            const playerID: string = request.params['playerID'] ?? '';
+            let guess: string = request.params['guess'] ?? '';
             assert(playerID);
             assert(guess);
 
-            if (typeof playerID === 'string' && typeof guess === 'string') {
-                if(/[\w]/.test(guess)) {
-                    guess = guess.toLowerCase();
-                    const playersMatch: Match = this.matches.get(playerID) ?? new Match();
-                    if (playersMatch.getPreviousGuesses.has(guess)) {
-                        response
-                            .status(HttpStatus.NOT_ACCEPTABLE)
-                            .type('text')
-                            .send(`You submitted ${guess}, but it has previously been submitted!`);
-                    }
-                    console.log(playersMatch.toString());
-                    await playersMatch.submitWord(playerID, guess);
-                    const { match, guess1, guess2 } = playersMatch.checkForMatch();
-                    if (match) {
-                        response
-                            .status(HttpStatus.OK)
-                            .json({match: true, matchingGuess: guess1, numberOfGuesses: playersMatch.getNumberOfGuesses});
-                    } else {
-                        response
-                            .status(HttpStatus.OK)
-                            .json({match: false, guess1: guess1, guess2: guess2});
-                    }
+            guess = guess.toLowerCase();
+            const playersMatch: Match = this.matches.get(playerID) ?? new Match();
+
+            // Invalid guess - CHECK FOR WHITESPACE
+            if(!/[\w]/.test(guess)) {
+                response
+                    .status(HttpStatus.NOT_ACCEPTABLE)
+                    .type('text')
+                    .send('Invalid guess! Remember, guesses must be single words consisting only of letters!');
+
+            // Repeated guess
+            } else if (playersMatch.getPreviousGuesses.has(guess)) {
+                response
+                    .status(HttpStatus.NOT_ACCEPTABLE)
+                    .type('text')
+                    .send(`You submitted ${guess}, but it has previously been submitted!`);
+
+            // Valid guess
+            } else {
+                await playersMatch.submitWord(playerID, guess);
+                const { match, guess1, guess2 } = playersMatch.checkForMatch();
+
+                // It's a match!
+                if (match) {
+                    response
+                        .status(HttpStatus.OK)
+                        .json({match: true, matchingGuess: guess1, numberOfGuesses: playersMatch.getNumberOfGuesses});
+
+                // Not a match
                 } else {
                     response
-                        .status(HttpStatus.NOT_ACCEPTABLE)
-                        .type('text')
-                        .send('Invalid guess! Remember, guesses must be single words consisting only of letters!');
+                        .status(HttpStatus.OK)
+                        .json({match: false, guess1: guess1, guess2: guess2});
                 }
             }
         }));

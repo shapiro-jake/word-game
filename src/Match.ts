@@ -17,41 +17,45 @@ export class Match {
     }
 
     // Abstraction Function
-    //     AF(players, numberOfGuesses,
-    //        guesses, previousGuesses, 
-    //        deferredGuesses) = a match of  Word Game where players 'players' are playing,
-    //                           have made 'numberOfGuesses' guesses,
-    //                           with the gussed of player 'playerID' in guesses.get(playerID),
-    //                           with 'previousGuesses' as the guesses that have been previously submitted,
-    //                           and 'deferredGuesses' guesses to be checked when both players have submitted a word
+    //     AF(players, waitingPlayers,
+    //        numberOfGuesses, guesses,
+    //        previousGuesses, deferredGuesses) = a match of  Word Game where players 'players' are playing,
+    //                                            'waitingPlayers' are waiting to be paired against an opponent,
+    //                                            the players have made 'numberOfGuesses' cumulative guesses,
+    //                                            with the guess of player 'playerID' in guesses.get(playerID),
+    //                                            with 'previousGuesses' as the guesses that have been previously submitted during this match,
+    //                                            and 'deferredGuesses' guesses to be checked when both players have submitted a word
     // Rep Invariant
     //     - number of players in 'players' is <= 2 with each player having an ID consisting of only alphanumeric characters
+    //     - number of waitingPlayers is <= 1
     //     - numberOfGuesses >= 0
     //     - each player's guess is a single word consisting only of lowercase letters,
     //           unless it is the empty string which represents no guess
-    //     - number of deferred guesses is <= 2
+    //     - number of deferred guesses is <= 1
     // Safety From Rep Exposure
     //     - all rep fields are private
-    //     - all public methods and getters either take no or only immutable types as arguments
+    //     - all public methods either take no or only immutable types as arguments
     //           and return either a promise that resolves to void, an immutable type, or nothing
+    //     - all getters that return rep fields defensively copy where applicable
 
     /**
      * Ensure the rep invariant
      */
     private checkRep() {
         assert(this.players.size <= 2);
+        assert(this.waitingPlayers.length <= 1);
         assert(this.numberOfGuesses >= 0);
         for (const playerID of this.players) {
             const guess:string = this.guesses.get(playerID) ?? '';
             assert(/[\w]/.test(guess) || guess === '');
         }
-        assert(this.deferredGuesses.length <= 2);
+        assert(this.deferredGuesses.length <= 1);
     }
 
     /**
      * Register a new player to play this Word Game
      * 'playerID' required to consist of only alphanumeric characters
-     * Modifies GameState to include the new player
+     * Modifies the rep of this Match to include the new player
      * 
      * @param playerID the ID of a new player that wants to play this Word Game
      * 
@@ -87,24 +91,19 @@ export class Match {
 
     /**
      * Have a player submit a word
-     * Requires that guess is not in 'this.previousGuesses'
+     * Requires that 'guess' is not in 'this.previousGuesses' and a single word consisting of only letters
+     * Requires that 'playerID' is already registered and consists of only alphanumeric characters
      * 
      * @param playerID the ID of the player who submitted a word
-     * @param word the word a player submitted, required to be a single word consisting of only letters
-     * @returns {Promise<void>} a promise that resolves when both players submit words
-     * @throws if player is not registered
+     * @param guess the word a player submitted
+     * @returns {Promise<void>} a promise that resolves when two players in this Match submit words
      */
     public submitWord(playerID: string, guess: string): Promise<void> {
-        if (!this.alreadyRegistered(playerID)) {
-            this.checkRep();
-            throw Error;
-        }
-
         const waitingGuess = new Deferred<void>();
         this.guesses.set(playerID, guess);
+        this.deferredGuesses.push(waitingGuess);
         this.numberOfGuesses += 1;
 
-        this.deferredGuesses.push(waitingGuess);
         if (this.deferredGuesses.length === 2) {
             while (this.deferredGuesses.length > 0) {
                 this.deferredGuesses.pop()?.resolve();
@@ -120,18 +119,11 @@ export class Match {
      * Check if the guesses currently submitted constitute a match
      * Requires that two players have submitted valid guesses
      * 
-     * Requires that the number of submitted words is exactly 2
-     * If two guesses are submitted and they do not constitute a match, resolves the deferred promises
-     *     associated with the guesses, prints 'LOSER!', and returns false
-     * If two guesses are submitted and they not constitute a match, resolves the deferred promises
-     *     associated with the guesses, prints 'VICTORY!', and returns true
-     * 
-     * @returns {boolean} returns true iff the two submitted words are a match
-     * @returns {string} return the two guesses
-     * @throws {error} if there are not two submitted words
+     * @returns {match: boolean} returns true iff the two submitted words are a match, false otherwise
+     * @returns {guess1: string} returns the guess of one player
+     * @returns {guess2: string} returns the guess of the second player
      */
     public checkForMatch(): { match: boolean, guess1: string, guess2: string } {
-        // Get the guesses and associated promises from each player
         const playerIDs: Array<string> = new Array(...this.playerIDs);
         const player1ID: string = playerIDs[0] ?? '';
         const player2ID: string = playerIDs[1] ?? '';
@@ -149,6 +141,27 @@ export class Match {
 
         this.checkRep();
         return { match: result, guess1: player1Guess, guess2: player2Guess };
+    }
+
+    /**
+     * Get the ID of the opponent of a given player
+     * @param playerID the player who's opponent to get
+     * 
+     * @returns {string} the ID of the other player in this Match, or void if only 'playerID' is playing
+     * @throws {error} if 'playerID' is not registered in this Match
+     */
+     public getOpponent(playerID: string): string {
+        if (!this.alreadyRegistered(playerID)) {
+            throw Error;
+        }
+
+        for (const ID of this.playerIDs) {
+            if (ID !== playerID) {
+                return ID;
+            }
+        }
+
+        return '';
     }
 
     /**
@@ -172,9 +185,9 @@ export class Match {
     /**
      * Check if a player with ID 'playerID' is already registered in this match
      * 
-     * @param playerID the playerID being determined if it is already registered
-     * @returns {boolean} true iff player with ID 'playerID' is already registered in this match
-     *          false otherwise
+     * @param playerID the playerID being determined if they are already registered
+     * @returns {boolean} true iff player with ID 'playerID' is already registered in this match,
+     *                    false otherwise
      */
      private alreadyRegistered(playerID: string): boolean {
         return this.players.has(playerID);
@@ -208,32 +221,11 @@ export class Match {
     }
 
     /**
-     * Get the number of guesses in this match
+     * Get the number of rounds of this match
      * 
-     * @return {number} the number of guesses so far in this match
+     * @return {number} the number of rounds played in this match so far
      */
     public get getNumberOfGuesses(): number {
         return this.numberOfGuesses / 2;
-    }
-
-    /**
-     * Get the ID of the opponent of a given player
-     * @param playerID the player who's opponent to get
-     * 
-     * @returns {string} the ID of the other player in this Match, or void if only 'playerID' is playing
-     * @throws {error} if 'playerID' is not registered in this Match
-     */
-    public getOpponent(playerID: string): string {
-        if (!this.alreadyRegistered(playerID)) {
-            throw Error;
-        }
-
-        for (const ID of this.playerIDs) {
-            if (ID !== playerID) {
-                return ID;
-            }
-        }
-
-        return '';
     }
 }
