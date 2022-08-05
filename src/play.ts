@@ -33,7 +33,7 @@ function registerPlayer(playerID: string) {
     const request = new XMLHttpRequest();
     const url = `http://localhost:8789/register/${playerID}`;
 
-    request.addEventListener('loadend', function onRegiter() {
+    request.addEventListener('loadend', function onRegister() {
         if (this.status === HttpStatus.NOT_ACCEPTABLE) {
             registration.removeAttribute('hidden');
             pairing.setAttribute('hidden', 'hidden');
@@ -60,8 +60,6 @@ function registerPlayer(playerID: string) {
 }
 
 function WordGame(playerID: string) {
-    let submitting = false;
-
     const submitButton = document.getElementById('submitButton') as HTMLButtonElement;
     assert(submitButton);
     submitButton.addEventListener('click', submitGuess);
@@ -69,15 +67,12 @@ function WordGame(playerID: string) {
     const previousGuesses = document.getElementById('previousGuesses') as HTMLElement;
     assert(previousGuesses);
 
-    function submitGuess() {
-        // Cannot submit more than once in one turn
-        if (submitting) {
-            console.log('Already submitting a guess!');
-            return;
-        }
-        submitting = true;
+    const guessHTML = document.getElementById('guess') as HTMLInputElement;
+    assert(guessHTML);
 
-        const guessHTML = document.getElementById('guess') as HTMLInputElement;
+    function submitGuess() {
+        submitButton.disabled = true;
+
         const guess = guessHTML.value;
 
         const request = new XMLHttpRequest();
@@ -86,25 +81,67 @@ function WordGame(playerID: string) {
         request.addEventListener('load', function onSubmit() {
             if (this.status === HttpStatus.NOT_ACCEPTABLE) {
                 alert(`${this.responseText}`);
+                submitButton.disabled = false;
             } else {
                 const result = JSON.parse(this.response);
                 if (result.match) {
-                    submitButton.disabled = true;
+                    playAgainButton.removeAttribute('hidden');
                     previousGuesses.innerHTML = `Congratulations! You guys matched with \"${result.matchingGuess}\"
                                                  after ${result.numberOfGuesses} guesses!`;
                 } else {
+                    submitButton.disabled = false;
                     previousGuesses.innerHTML = `Womp, womp. You guys did not submit a match.\nPrevious guesses: \"${result.guess1}\" and \"${result.guess2}\"`;
                 }
             }
-        });
-        request.addEventListener('loadend', function onSubmitDone() {
-            submitting = false;
         });
 
         request.open('GET', url);
         console.log(`Sending submit request to ${url}`);
         request.send();
     }
+
+    const playAgainButton = document.getElementById('playAgainButton') as HTMLButtonElement;
+    assert(playAgainButton);
+    playAgainButton.addEventListener('click', playAgain);
+
+    const thanksForPlaying = document.getElementById('thanksText') as HTMLElement;
+    assert(thanksForPlaying);
+
+    function playAgain() {
+        playAgainButton.disabled = true;
+
+        const request = new XMLHttpRequest();
+        const url = `http://localhost:8789/playAgain/${playerID}/true`;
+
+        request.addEventListener('load', function onPlayAgain() {
+            const rematch = JSON.parse(this.response).rematch;
+            if (rematch) {
+                submitButton.disabled = false;
+
+                playAgainButton.setAttribute('hidden', 'hidden');
+                playAgainButton.disabled = false;
+
+                guessHTML.value = '';
+            } else {
+                thanksForPlaying.removeAttribute('hidden');
+                document.getElementById('play')?.setAttribute('hidden', 'hidden');
+            }
+        });
+
+        request.open('GET', url);
+        console.log(`Sending playAgain request to ${url}`);
+        request.send();
+    }
+
+    addEventListener('unload', function noPlayAgain() {
+        const request = new XMLHttpRequest();
+        const url = `http://localhost:8789/playAgain/${playerID}/false`;
+        request.open('GET', url);
+        console.log(`Sending noPlayAgain request to ${url}`);
+        request.send();
+    });
 }
+
+
 
 startGame();

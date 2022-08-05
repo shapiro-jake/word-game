@@ -1,16 +1,21 @@
 import { assert } from 'console';
 import { Deferred } from './deferredGuess';
 
+enum Status {IN_PROGRESS, FINISHED}
+
 /**
  * A match of Word Game between 2 players with different usernames
  */
 export class Match {
+    private status: Status = Status.IN_PROGRESS;
     private readonly players: Set<string> = new Set();
     private readonly waitingPlayers: Array<Deferred<void>> = new Array();
     private numberOfGuesses: number = 0;
     private readonly guesses: Map<string, string> = new Map();
     private readonly previousGuesses: Set<string> = new Set();
     private readonly deferredGuesses: Array<Deferred<void>> = new Array();
+    private readonly playAgainResponses: Array<boolean> = new Array();
+    private readonly deferredPlayAgain: Array<Deferred<void>> = new Array();
 
     public constructor() {
         this.checkRep();
@@ -136,11 +141,57 @@ export class Match {
         let result: boolean = false;
         // If two guess are equal, then there is a match
         if (player1Guess === player2Guess) {
+            this.status = Status.FINISHED;
             result = true;
         }
 
         this.checkRep();
         return { match: result, guess1: player1Guess, guess2: player2Guess };
+    }
+
+    /**
+     * 
+     * @param playerID a player who wants to play again
+     * @param {boolean} playAgain indicates if 'playerID' wants to play again
+     * 
+     * @returns {Promise<void>} a promise that resolves when both players have indicated whether they want to play again
+     * @throws {error} if either this match is not finished or 'playerID' is not registered
+     */
+    public playAgain(playerID: string, playAgain: boolean): Promise<void> {
+        if (this.status !== Status.FINISHED || !this.alreadyRegistered(playerID)) {
+            throw Error;
+        }
+
+        this.playAgainResponses.push(playAgain);
+
+        const playAgainDeferred: Deferred<void> = new Deferred();
+        this.deferredPlayAgain.push(playAgainDeferred);
+
+        if (this.deferredPlayAgain.length === 2) {
+            while (this.deferredPlayAgain.length > 0) {
+                this.deferredPlayAgain.pop()?.resolve();
+            }
+        }
+
+        return playAgainDeferred.promise;
+    }
+
+    
+    /**
+     * Check if the players registered in this match want to play again
+     * 
+     * @returns {boolean} returns true iff the match is over and every player registered in this match
+     *                        has indicated that they want to play again
+     *                    false otherwise
+     */
+    public rematch(): boolean {
+        if (this.playAgainResponses.every(element => element) &&
+            this.playAgainResponses.length === this.numberOfPlayers &&
+            this.status === Status.FINISHED) {
+            this.clearMatch();
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -162,6 +213,19 @@ export class Match {
         }
 
         return '';
+    }
+
+
+    /**
+     * Restart the match by clearing previous guesses and resetting the number of guesses to 0
+     * Mutates the rep of Match
+     */
+    private clearMatch(): void {
+        this.numberOfGuesses = 0;
+        this.previousGuesses.clear();
+        for (const playerID of this.playerIDs) {
+            this.guesses.set(playerID, '');
+        }
     }
 
     /**

@@ -59,6 +59,17 @@ export class WebServer {
             response.sendFile(path.resolve('html/play.html'));
         });
 
+
+        /**
+         * Handle a request for /register/ which means they registered the empty string as playerID
+         */
+        this.app.get('/register/', (request, response) => {
+            response
+                .status(HttpStatus.NOT_ACCEPTABLE)
+                .type('text')
+                .send('Cannot register the empty string!');
+        });
+
         /** 
          * Handle a request for /register/playerID by responding with the response of the Word Game
          * if playerID consists of only alphanumeric characters; error 406 otherwise.
@@ -68,7 +79,7 @@ export class WebServer {
             assert(playerID);
 
             // Check that playerID consists of only alphanumeric characters
-            if (!/^[A-Za-z0-9]+$/.test(playerID)) {
+            if (!/^[A-Za-z0-9]+$/.test(playerID) && playerID !== '') {
                 response
                     .status(HttpStatus.NOT_ACCEPTABLE)
                     .type('text')
@@ -151,27 +162,31 @@ export class WebServer {
             }
         }));
 
-        // /**
-        //  * Handle a request for /playAgain/playerID by responding with the response of the Word Game
-        //  * if playerID consists of only alphanumeric characters;
-        //  * error 406 otherwise
-        //  */
-        // this.app.get('/playAgain/:playerID', (request, response) => {
-        //     const { playerID } = request.params;
-        //     assert(playerID);
-        //     if(/[\w\d]+/.test(playerID)) {
-        //         response
-        //         .status(HttpStatus.OK)
-        //         .type('text')
-        //         .send(`${playerID} has elected to play again!`);
-        //     } else {
-        //         response
-        //         .status(HttpStatus.NOT_ACCEPTABLE)
-        //         .type('text')
-        //         .send('Invalid playerID');
-        //     }
-        // });
-    }
+        /**
+         * Handle a request for /playAgain/playerID for playerID that is registered in a match that just finished
+         * If both players in the match opt to play again, server responds with true, the match is cleared, and they play again
+         * Otherwise, server responds with false, and the players are removed from the server
+         */
+        this.app.get('/playAgain/:playerID/:playAgain', asyncHandler(async (request, response) =>  {
+            const playerID: string = request.params['playerID'] ?? '';
+            const playAgain: string = request.params['playAgain'] ?? '';
+            assert(playerID);
+            assert(playAgain);
+
+            const playAgainBoolean: boolean = (playAgain === 'true');
+            const playersMatch: Match = this.matches.get(playerID) ?? new Match();
+
+            await playersMatch.playAgain(playerID, playAgainBoolean);
+            let rematch = false;
+            if (playersMatch.rematch()) {
+                rematch = true;
+            }
+
+            response
+                .status(HttpStatus.OK)
+                .json({rematch: rematch});
+        }));
+    };
 
     /**
      * Start this server

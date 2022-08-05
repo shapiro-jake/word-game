@@ -30,7 +30,14 @@
             <label for="guess">Enter your guess:</label><br>
             <input type="text" id="guess" name="guess"></input>
             <button id="submitButton">Submit</button>
-            <p>*Must be a single word that consists only of letters (is not case-sensitive)</p>
+            <p>Your guess must be a single word that consists only of letters (is not case-sensitive)
+                <br>
+                You can only submit once per round!
+            </p>
+            <button id="playAgainButton" hidden="hidden">Play Again</button>
+        </div>
+        <div id="thanksText" hidden="hidden" class="main">
+            <h1>Thanks for playing the Word Game!</h1>
         </div>
     <script>var exports = {};</script>
     <script src="play-bundle.js"></script>
