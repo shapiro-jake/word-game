@@ -49,6 +49,7 @@ export class WebServer {
          * Set '/dist' to static directory from which to serve files
          */
         this.app.use(express.static('dist'));
+        this.app.use(express.static('html'));
         this.app.use(bodyParser.json());
         this.app.use(bodyParser.urlencoded({ extended: true }));
         
@@ -129,7 +130,7 @@ export class WebServer {
             const playersMatch: Match = this.matches.get(playerID) ?? new Match();
 
             // Invalid guess - CHECK FOR WHITESPACE
-            if(!/[\w]/.test(guess)) {
+            if(!/^[a-zA-Z]+$/.test(guess)) {
                 response
                     .status(HttpStatus.NOT_ACCEPTABLE)
                     .type('text')
@@ -177,11 +178,8 @@ export class WebServer {
             const playAgainBoolean: boolean = (playAgain === 'true');
             const playersMatch: Match = this.matches.get(playerID) ?? new Match();
 
-            await playersMatch.playAgain(playerID, playAgainBoolean);
-            let rematch = false;
-            if (playersMatch.rematch()) {
-                rematch = true;
-            } else {
+            const rematch: boolean = await playersMatch.playAgain(playerID, playAgainBoolean);
+            if (!rematch) {
                 this.matches.delete(playerID);
             }
 

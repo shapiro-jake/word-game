@@ -1,56 +1,53 @@
 import { assert } from 'console';
 import HttpStatus from 'http-status-codes';
+import $ from 'jquery';
 
 
 function startGame(): void {
+    const registrationPage = document.getElementById('registration') as HTMLElement;
+    assert(registrationPage);
+    registrationPage.classList.remove('hidden');
 
     const playerIDElement = document.getElementById('PlayerID') as HTMLInputElement;
     assert(playerIDElement);
+    playerIDElement.value = '';
     
-    const submitButton = document.getElementById('registerButton') as HTMLButtonElement;
-    assert(submitButton);
+    const registerButton = document.getElementById('registerButton') as HTMLButtonElement;
+    assert(registerButton);
+    registerButton.disabled = false;
 
-    submitButton.addEventListener('click', function() {
+    $('#registerButton').off('click').on('click', function() {
+        registrationPage.classList.add('hidden');
         registerPlayer(playerIDElement.value);
+    });
+
+    $('#PlayerID').off('keypress').on('keypress', function(event) {
+        if (event.key === 'Enter'){
+            registerButton.click();
+            registerButton.disabled = true;
+        }
     });
 }
 
 function registerPlayer(playerID: string) {
-    const registration = document.getElementById('registration') as HTMLElement;
-    assert(registration);
-    registration.setAttribute('hidden', 'hidden');
-
     const pairing = document.getElementById('pairing') as HTMLElement;
     assert(pairing);
-    pairing.removeAttribute('hidden');
-
-    const welcomePlayerID = document.getElementById('welcomePlayerID') as HTMLElement;
-    assert(welcomePlayerID);
-
-    const opponentText = document.getElementById('opponentText') as HTMLElement;
-    assert(opponentText);
+    pairing.classList.remove('hidden');
 
     const request = new XMLHttpRequest();
     const url = `http://localhost:8789/register/${playerID}`;
 
     request.addEventListener('loadend', function onRegister() {
         if (this.status === HttpStatus.NOT_ACCEPTABLE) {
-            registration.removeAttribute('hidden');
-            pairing.setAttribute('hidden', 'hidden');
-            
+            console.log("HERE");
+            pairing.classList.add('hidden');
+            startGame();
             alert(`${this.responseText}`);
         } else {
             console.log(`Successfully registered ${playerID}. Starting the game now...`);
-
-            pairing.setAttribute('hidden', 'hidden');
-            
-            welcomePlayerID.innerHTML = `Welcome, ${playerID}!`;
-
+            pairing.classList.add('hidden');
             const opponentID: string = JSON.parse(this.response).opponent;
-            opponentText.innerHTML = `Playing against ${opponentID}`;
-
-            document.getElementById('play')?.removeAttribute('hidden');
-            WordGame(playerID);
+            WordGame(playerID, opponentID);
         }
     });
     
@@ -59,16 +56,45 @@ function registerPlayer(playerID: string) {
     request.send();
 }
 
-function WordGame(playerID: string) {
-    const submitButton = document.getElementById('submitButton') as HTMLButtonElement;
-    assert(submitButton);
-    submitButton.addEventListener('click', submitGuess);
+function WordGame(playerID: string, opponentID: string) {
+    const play = document.getElementById('play') as HTMLElement;
+    assert(play);
+    play.classList.remove('hidden');
+
+    const welcomePlayerID = document.getElementById('welcomePlayerID') as HTMLElement;
+    assert(welcomePlayerID);
+    welcomePlayerID.innerHTML = `Welcome, ${playerID}!`;
+
+    const opponentText = document.getElementById('opponentText') as HTMLElement;
+    assert(opponentText);
+    opponentText.innerHTML = `Playing against ${opponentID}`;
 
     const previousGuesses = document.getElementById('previousGuesses') as HTMLElement;
     assert(previousGuesses);
 
+    const guessElements = document.getElementsByClassName("guess");
+    assert(guessElements);
+
     const guessHTML = document.getElementById('guess') as HTMLInputElement;
     assert(guessHTML);
+
+    const submitButton = document.getElementById('submitButton') as HTMLButtonElement;
+    assert(submitButton);
+    submitButton.disabled = false;
+    $('#submitButton').off('click keypress').on('click', submitGuess);
+    $('#guess').off('keypress').on('keypress', function(event) {
+        if (event.key === 'Enter'){
+            submitButton.click();
+            submitButton.disabled = true;
+        }
+    });
+
+    const playAgainButton = document.getElementById('playAgainButton') as HTMLButtonElement;
+    assert(playAgainButton);
+    playAgainButton.addEventListener('click', playAgain);
+
+    const thanksForPlaying = document.getElementById('thanksText') as HTMLElement;
+    assert(thanksForPlaying);
 
     function submitGuess() {
         submitButton.disabled = true;
@@ -83,9 +109,13 @@ function WordGame(playerID: string) {
                 alert(`${this.responseText}`);
                 submitButton.disabled = false;
             } else {
+                guessHTML.value = '';
+
                 const result = JSON.parse(this.response);
-                if (result.match) {
-                    playAgainButton.removeAttribute('hidden');
+                if (result.match) {    
+                    addClass(guessElements, 'hidden');
+                    playAgainButton.classList.remove('hidden');
+
                     previousGuesses.innerHTML = `Congratulations! You guys matched with \"${result.matchingGuess}\"
                                                  after ${result.numberOfGuesses} guesses!`;
                 } else {
@@ -100,13 +130,6 @@ function WordGame(playerID: string) {
         request.send();
     }
 
-    const playAgainButton = document.getElementById('playAgainButton') as HTMLButtonElement;
-    assert(playAgainButton);
-    playAgainButton.addEventListener('click', playAgain);
-
-    const thanksForPlaying = document.getElementById('thanksText') as HTMLElement;
-    assert(thanksForPlaying);
-
     function playAgain() {
         playAgainButton.disabled = true;
 
@@ -114,17 +137,16 @@ function WordGame(playerID: string) {
         const url = `http://localhost:8789/playAgain/${playerID}/true`;
 
         request.addEventListener('load', function onPlayAgain() {
+            playAgainButton.disabled = false;
+            playAgainButton.classList.add('hidden');
+            removeClass(guessElements, 'hidden');
+            previousGuesses.innerHTML = '';
+
             const rematch = JSON.parse(this.response).rematch;
             if (rematch) {
                 submitButton.disabled = false;
-
-                playAgainButton.setAttribute('hidden', 'hidden');
-                playAgainButton.disabled = false;
-
-                guessHTML.value = '';
             } else {
-                // thanksForPlaying.removeAttribute('hidden');
-                // document.getElementById('play')?.setAttribute('hidden', 'hidden');
+                play.classList.add('hidden');
                 registerPlayer(playerID);
             }
         });
@@ -143,6 +165,16 @@ function WordGame(playerID: string) {
     });
 }
 
+function addClass(elements: HTMLCollectionOf<Element>, addedClass: string): void {
+    for (const element of elements) {
+        element.classList.add(addedClass);
+    }
+}
 
+function removeClass(elements: HTMLCollectionOf<Element>, removedClass: string): void {
+    for (const element of elements) {
+        element.classList.remove(removedClass);
+    }
+}
 
 startGame();

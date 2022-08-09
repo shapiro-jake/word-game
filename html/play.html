@@ -3,40 +3,36 @@
     <head>
         <meta charset="utf-8">
         <title>Word Game</title>
-        <style>
-            .main {
-                text-align: center;
-            }
-        </style>
+        <link rel="stylesheet" href="play.css">
     </head>
     <body>
         <div id="registration" class="main">
             <h1>Welcome to the Word Game!</h1>
             <label for="PlayerID">Enter a username to play!</label><br>
-            <input type="text" id="PlayerID" name="PlayerID" placeholder="BobSmithson"></input><br>
+            <input type="text" id="PlayerID" name="PlayerID" placeholder="BobSmithson" autofocus></input><br>
             <button id="registerButton">Register</button>
-            <p>*username must consist of only alphanumeric characters</p>
+            <p class="note">*username must consist of only alphanumeric characters without whitespace</p>
         </div>
 
-        <div id="pairing" hidden="hidden" class="main">
+        <div id="pairing" class="main hidden">
             <h1>Waiting to be paired up...</h1>
         </div>
 
-        <div id="play" hidden="hidden" class="main">
+        <div id="play" class="main hidden">
             <h1>Let's Play the Word Game!</h1>
             <h2 id="welcomePlayerID"></h2>
-            <h3 id="opponentText">Finding an opponent...</h3>
+            <h3 id="opponentText"></h3>
             <p id="previousGuesses"></p>
-            <label for="guess">Enter your guess:</label><br>
-            <input type="text" id="guess" name="guess"></input>
-            <button id="submitButton">Submit</button>
-            <p>Your guess must be a single word that consists only of letters (is not case-sensitive)
+            <label class="guess">Enter your guess:</label><br>
+            <input type="text" name="guess" id="guess" class="guess" autofocus></input>
+            <button id="submitButton" class="guess">Submit</button>
+            <p id="guessRules" class="note guess">Your guess must be a single word that consists only of letters (is not case-sensitive)
                 <br>
                 You can only submit once per round!
             </p>
-            <button id="playAgainButton" hidden="hidden">Play Again</button>
+            <button id="playAgainButton" class="hidden">Play Again</button>
         </div>
-        <div id="thanksText" hidden="hidden" class="main">
+        <div id="thanksText" class="main hidden">
             <h1>Thanks for playing the Word Game!</h1>
         </div>
     <script>var exports = {};</script>

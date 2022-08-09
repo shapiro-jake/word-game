@@ -143,7 +143,7 @@ export class Match {
 
         // Check for a match
         let result: boolean = false;
-        
+
         // If two guess are equal, then there is a match
         if (player1Guess === player2Guess) {
             this.status = Status.FINISHED;
@@ -162,7 +162,7 @@ export class Match {
      * @returns {Promise<void>} a promise that resolves when both players have indicated whether they want to play again
      * @throws {error} if either this match is not finished or 'playerID' is not registered
      */
-    public playAgain(playerID: string, playAgain: boolean): Promise<void> {
+    public playAgain(playerID: string, playAgain: boolean): Promise<boolean> {
         if (this.status !== Status.FINISHED || !this.alreadyRegistered(playerID)) {
             throw Error;
         }
@@ -177,25 +177,28 @@ export class Match {
                 this.deferredPlayAgain.pop()?.resolve();
             }
         }
-
-        return playAgainDeferred.promise;
+        const returnedPromise: Promise<boolean> = new Promise(async (resolve, reject) => {
+            await playAgainDeferred.promise;
+            resolve(this.rematch());
+        });
+        return returnedPromise;
     }
 
     
     /**
      * Check if the players registered in this match want to play again
+     * Requires that the match is finished and each player has submitted a play again response
      * 
      * @returns {boolean} returns true iff the match is over and every player registered in this match
      *                        has indicated that they want to play again
      *                    false otherwise
      */
-    public rematch(): boolean {
-        if (this.playAgainResponses.every(element => element) &&
-            this.playAgainResponses.length === this.numberOfPlayers &&
-            this.status === Status.FINISHED) {
+    private rematch(): boolean {
+        if (this.playAgainResponses.every(element => element)) {
             this.clearMatch();
             return true;
         }
+
         return false;
     }
 
@@ -231,6 +234,8 @@ export class Match {
         for (const playerID of this.playerIDs) {
             this.guesses.set(playerID, '');
         }
+        this.status = Status.IN_PROGRESS;
+        this.playAgainResponses.length = 0;
     }
 
     /**
