@@ -103,7 +103,7 @@ export class Match {
      * @param guess the word a player submitted
      * @returns {Promise<void>} a promise that resolves when two players in this Match submit words
      */
-    public submitWord(playerID: string, guess: string): Promise<void> {
+    public submitWord(playerID: string, guess: string): Promise<{ match: boolean, guess1: string, guess2: string}> {
         const waitingGuess = new Deferred<void>();
         this.guesses.set(playerID, guess);
         this.deferredGuesses.push(waitingGuess);
@@ -116,7 +116,11 @@ export class Match {
         }
 
         this.checkRep();
-        return waitingGuess.promise;
+        const returnedPromise: Promise<{ match: boolean, guess1: string, guess2: string}> = new Promise(async (resolve, reject) => {
+            await waitingGuess.promise;
+            resolve(this.checkForMatch());
+        });
+        return returnedPromise;
     }
 
 
@@ -139,6 +143,7 @@ export class Match {
 
         // Check for a match
         let result: boolean = false;
+        
         // If two guess are equal, then there is a match
         if (player1Guess === player2Guess) {
             this.status = Status.FINISHED;

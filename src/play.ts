@@ -123,8 +123,9 @@ function WordGame(playerID: string) {
 
                 guessHTML.value = '';
             } else {
-                thanksForPlaying.removeAttribute('hidden');
-                document.getElementById('play')?.setAttribute('hidden', 'hidden');
+                // thanksForPlaying.removeAttribute('hidden');
+                // document.getElementById('play')?.setAttribute('hidden', 'hidden');
+                registerPlayer(playerID);
             }
         });
 

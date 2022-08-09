@@ -1,5 +1,5 @@
 import { assert } from 'console';
-import express, { Application } from 'express';
+import express, { Application, response } from 'express';
 import { Server } from 'http';
 import HttpStatus from 'http-status-codes';
 import { Match } from './Match';
@@ -144,8 +144,9 @@ export class WebServer {
 
             // Valid guess
             } else {
-                await playersMatch.submitWord(playerID, guess);
-                const { match, guess1, guess2 } = playersMatch.checkForMatch();
+                const { match, guess1, guess2 } = await playersMatch.submitWord(playerID, guess);
+                // await playersMatch.submitWord(playerID, guess);
+                // const { match, guess1, guess2 } = playersMatch.checkForMatch();
 
                 // It's a match!
                 if (match) {
@@ -180,6 +181,8 @@ export class WebServer {
             let rematch = false;
             if (playersMatch.rematch()) {
                 rematch = true;
+            } else {
+                this.matches.delete(playerID);
             }
 
             response
