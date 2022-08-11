@@ -6,6 +6,8 @@ import { Match } from './Match';
 import bodyParser from 'body-parser';
 import asyncHandler from 'express-async-handler';
 import path from 'path';
+import {PythonShell} from 'python-shell';
+
 
 
 /**
@@ -22,7 +24,8 @@ export class WebServer {
     private server: Server|undefined;
     private readonly matches: Map<string, Match> = new Map();
     private nextMatch: Match = new Match();
-
+    private requestedIDs: Set<string> = new Set(); // Set of requested IDs
+    private matchRequests: Map<string, string> = new Map(); // Maps requested player to who requested it
 
 
     // Abstraction Function
@@ -52,6 +55,11 @@ export class WebServer {
         this.app.use(express.static('html'));
         this.app.use(bodyParser.json());
         this.app.use(bodyParser.urlencoded({ extended: true }));
+
+        this.app.get('/test', (request, response) => {
+            return response.send('hello');
+            console.log('HERE');
+        });
         
         /**
          * Display play.html page as initial webpage.
@@ -61,40 +69,60 @@ export class WebServer {
         });
 
 
-        /**
-         * Handle a request for /register/ which means they registered the empty string as playerID
-         */
-        this.app.get('/register/', (request, response) => {
-            response
-                .status(HttpStatus.NOT_ACCEPTABLE)
-                .type('text')
-                .send('Cannot register the empty string!');
-        });
+        // /**
+        //  * Handle a request for /register/ which means they registered the empty string as playerID
+        //  */
+        // this.app.get('/register/', (request, response) => {
+        //     response
+        //         .status(HttpStatus.NOT_ACCEPTABLE)
+        //         .type('text')
+        //         .send('The empty string is an invalid username!');
+        // });
 
         /** 
          * Handle a request for /register/playerID by responding with the response of the Word Game
          * if playerID consists of only alphanumeric characters; error 406 otherwise.
          */
-        this.app.get('/register/:playerID', asyncHandler(async (request, response) => {
-            const playerID = request.params['playerID'] ?? '';
-            assert(playerID);
+        this.app.get('/register', asyncHandler(async (request, response): Promise<any> => {
+            const playerID: string = request.query['playerID']?.toString() ?? '';
+            const requestedID: string = request.query['requestedID']?.toString() ?? '';
 
-            // Check that playerID consists of only alphanumeric characters
-            if (!/^[A-Za-z0-9]+$/.test(playerID) && playerID !== '') {
-                response
+            // Check that playerID is valid
+            if (!this.validID(playerID)) {
+                return response
                     .status(HttpStatus.NOT_ACCEPTABLE)
                     .type('text')
                     .send(`${playerID} is an invalid username!`);
 
-            // playerID is valid but already playing a match
-            } else if (this.matches.get(playerID) !== undefined) {
-                response
+            }
+
+            // Check that playerID is not already playing in a match
+            if (this.matches.get(playerID) !== undefined) {
+                return response
                     .status(HttpStatus.NOT_ACCEPTABLE)
                     .type('text')
                     .send(`${playerID} is already registered in a match!`);
-            // playerID is valid and is not already registered
-            } else {
-                // Successful registration
+            } 
+            // At this point, playerID is valid and is not already registered
+
+            // Check if playerID was requested
+            if (this.requestedIDs.has(playerID)) {
+                // Force playerID to play requesting player
+                this.requestedIDs.delete(playerID);
+                const requestingPlayer: string = this.matchRequests.get(playerID) ?? '';
+                const requestedMatch: Match = this.matches.get(requestingPlayer) ?? new Match();
+                this.matches.set(playerID, requestedMatch);
+                await requestedMatch.registerPlayer(playerID);
+
+                // At this point, requested match of playerID will have 2 players
+                const opponent: string = this.matches.get(playerID)?.getOpponent(playerID) ?? '';
+                return response
+                    .status(HttpStatus.OK)
+                    .json({opponent: opponent});
+            }
+            
+            // Pair against next person in line
+            if (requestedID === '') {
                 this.matches.set(playerID, this.nextMatch);
                 await this.nextMatch.registerPlayer(playerID);
 
@@ -108,6 +136,47 @@ export class WebServer {
                 response
                     .status(HttpStatus.OK)
                     .json({opponent: opponent});
+
+            // Otherwise, requested to play against someone
+            } else {
+                // Check that opponentID is valid
+                if (!this.validID(requestedID)) {
+                    response
+                        .status(HttpStatus.NOT_ACCEPTABLE)
+                        .type('text')
+                        .send(`${requestedID} is an invalid username!`);
+                // Can't request yourself!
+                } else if (playerID === requestedID) {
+                    response
+                        .status(HttpStatus.NOT_ACCEPTABLE)
+                        .type('text')
+                        .send(`Can't request to play against yourself!`);
+                } else {
+                    // requested player is waiting to be paired up
+                    if (this.matches.get(requestedID)!== undefined && this.matches.get(requestedID)?.numberOfPlayers !== 2) {
+                        const requestedMatch: Match = this.matches.get(requestedID) ?? new Match();
+                        this.matches.set(playerID, requestedMatch);
+                        await requestedMatch.registerPlayer(playerID);
+                        this.nextMatch = new Match();
+
+                        const opponent: string = this.matches.get(playerID)?.getOpponent(playerID) ?? '';
+                        response
+                            .status(HttpStatus.OK)
+                            .json({opponent: opponent});
+                    } else {
+                        const requestedMatch: Match = new Match();
+                        this.matches.set(playerID, requestedMatch);
+                        this.requestedIDs.add(requestedID);
+                        this.matchRequests.set(requestedID, playerID);
+                        await requestedMatch.registerPlayer(playerID);
+    
+                        // At this point, requested match of playerID will have 2 players
+                        const opponent: string = this.matches.get(playerID)?.getOpponent(playerID) ?? '';
+                        response
+                            .status(HttpStatus.OK)
+                            .json({opponent: opponent});
+                    }
+                }
             }
         }));
 
@@ -187,7 +256,25 @@ export class WebServer {
                 .status(HttpStatus.OK)
                 .json({rematch: rematch});
         }));
+
+        this.app.get('/test', () => {
+            PythonShell.runString('x=1+1;print(x)', undefined, function (err) {
+                if (err) throw err;
+                console.log('finished');
+              });
+        });
     };
+
+    /**
+     * Check if an ID is valid (one or more alphanumeric characters without spaces)
+     * 
+     * @param playerID the ID to be checked
+     * @returns returns true iff 'playerID' is composed of one or more alphanumeric characters without spaces
+     *          false otherwise
+     */
+    private validID(playerID: string): boolean {
+        return /^[A-Za-z0-9]+$/.test(playerID);
+    }
 
     /**
      * Start this server
@@ -225,6 +312,7 @@ export class WebServer {
         console.log('server stopped');
     }
 }
+
 
 /**
  * Start a server

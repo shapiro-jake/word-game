@@ -11,6 +11,10 @@ function startGame(): void {
     const playerIDElement = document.getElementById('PlayerID') as HTMLInputElement;
     assert(playerIDElement);
     playerIDElement.value = '';
+
+    const requestedIDElement = document.getElementById('OpponentID') as HTMLInputElement;
+    assert(requestedIDElement);
+    requestedIDElement.value = '';
     
     const registerButton = document.getElementById('registerButton') as HTMLButtonElement;
     assert(registerButton);
@@ -18,7 +22,9 @@ function startGame(): void {
 
     $('#registerButton').off('click').on('click', function() {
         registrationPage.classList.add('hidden');
-        registerPlayer(playerIDElement.value);
+        const playerID: string = playerIDElement.value;
+        const requestedID: string = requestedIDElement.value;
+        registerPlayer(playerID, requestedID);
     });
 
     $('#PlayerID').off('keypress').on('keypress', function(event) {
@@ -27,19 +33,25 @@ function startGame(): void {
             registerButton.disabled = true;
         }
     });
+
+    $('#OpponentID').off('keypress').on('keypress', function(event) {
+        if (event.key === 'Enter'){
+            registerButton.click();
+            registerButton.disabled = true;
+        }
+    });
 }
 
-function registerPlayer(playerID: string) {
+function registerPlayer(playerID: string, requestedID: string) {
     const pairing = document.getElementById('pairing') as HTMLElement;
     assert(pairing);
     pairing.classList.remove('hidden');
 
     const request = new XMLHttpRequest();
-    const url = `http://localhost:8789/register/${playerID}`;
+    const url = `http://localhost:8789/register?playerID=${playerID}&requestedID=${requestedID}`;
 
     request.addEventListener('loadend', function onRegister() {
         if (this.status === HttpStatus.NOT_ACCEPTABLE) {
-            console.log("HERE");
             pairing.classList.add('hidden');
             startGame();
             alert(`${this.responseText}`);
@@ -147,7 +159,7 @@ function WordGame(playerID: string, opponentID: string) {
                 submitButton.disabled = false;
             } else {
                 play.classList.add('hidden');
-                registerPlayer(playerID);
+                registerPlayer(playerID, '');
             }
         });
 
