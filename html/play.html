@@ -6,13 +6,17 @@
         <link rel="stylesheet" href="play.css">
     </head>
     <body>
-        <div id="registration" class="main">
+        <div id="registration" class="main hidden">
             <h1>Welcome to the Word Game!</h1>
+
             <label for="PlayerID">Enter a username to play!</label><br>
             <input type="text" id="PlayerID" name="PlayerID" placeholder="BobSmithson" autofocus></input><br><br>
+
             <label for="OpponentID">If you would like to play a specific person, enter their username. To play a rando, leave blank.</label><br>
             <input type="text" id="OpponentID" name="OpponentID" placeholder="Jahseh"></input><br><br>
+
             <button id="registerButton">Register</button>
+
             <p class="note">*usernames must consist of only alphanumeric characters without whitespace</p>
         </div>
 
@@ -22,17 +26,23 @@
 
         <div id="play" class="main hidden">
             <h1>Let's Play the Word Game!</h1>
+
             <h2 id="welcomePlayerID"></h2>
             <h3 id="opponentText"></h3>
+
             <p id="previousGuesses"></p>
+
             <label class="guess">Enter your guess:</label><br>
             <input type="text" name="guess" id="guess" class="guess" autofocus></input>
+
             <button id="submitButton" class="guess">Submit</button>
+
             <p id="guessRules" class="note guess">Your guess must be a single word that consists only of letters (is not case-sensitive)
                 <br>
                 You can only submit once per round!
             </p>
-            <button id="playAgainButton" class="hidden">Play Again</button>
+
+            <button id="rematchButton" class="hidden">Rematch</button>
         </div>
         <div id="thanksText" class="main hidden">
             <h1>Thanks for playing the Word Game!</h1>

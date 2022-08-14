@@ -23,6 +23,7 @@ export class WebServer {
     private readonly app: Application;
     private server: Server|undefined;
     private readonly matches: Map<string, Match> = new Map();
+    private readonly registeredPlayers: Set<string> = new Set();
     private nextMatch: Match = new Match();
     private requestedIDs: Set<string> = new Set(); // Set of requested IDs
     private matchRequests: Map<string, string> = new Map(); // Maps requested player to who requested it
@@ -86,7 +87,6 @@ export class WebServer {
         this.app.get('/register', asyncHandler(async (request, response): Promise<any> => {
             const playerID: string = request.query['playerID']?.toString() ?? '';
             const requestedID: string = request.query['requestedID']?.toString() ?? '';
-
             // Check that playerID is valid
             if (!this.validID(playerID)) {
                 return response
@@ -97,7 +97,7 @@ export class WebServer {
             }
 
             // Check that playerID is not already playing in a match
-            if (this.matches.get(playerID) !== undefined) {
+            if (this.registeredPlayers.has(playerID)) {
                 return response
                     .status(HttpStatus.NOT_ACCEPTABLE)
                     .type('text')
@@ -112,6 +112,8 @@ export class WebServer {
                 const requestingPlayer: string = this.matchRequests.get(playerID) ?? '';
                 const requestedMatch: Match = this.matches.get(requestingPlayer) ?? new Match();
                 this.matches.set(playerID, requestedMatch);
+                this.registeredPlayers.add(playerID);
+
                 await requestedMatch.registerPlayer(playerID);
 
                 // At this point, requested match of playerID will have 2 players
@@ -124,6 +126,8 @@ export class WebServer {
             // Pair against next person in line
             if (requestedID === '') {
                 this.matches.set(playerID, this.nextMatch);
+                this.registeredPlayers.add(playerID);
+
                 await this.nextMatch.registerPlayer(playerID);
 
                 // Match is full, so create a new match for which players can register
@@ -156,6 +160,8 @@ export class WebServer {
                     if (this.matches.get(requestedID)!== undefined && this.matches.get(requestedID)?.numberOfPlayers !== 2) {
                         const requestedMatch: Match = this.matches.get(requestedID) ?? new Match();
                         this.matches.set(playerID, requestedMatch);
+                        this.registeredPlayers.add(playerID);
+
                         await requestedMatch.registerPlayer(playerID);
                         this.nextMatch = new Match();
 
@@ -168,6 +174,8 @@ export class WebServer {
                         this.matches.set(playerID, requestedMatch);
                         this.requestedIDs.add(requestedID);
                         this.matchRequests.set(requestedID, playerID);
+                        this.registeredPlayers.add(playerID);
+
                         await requestedMatch.registerPlayer(playerID);
     
                         // At this point, requested match of playerID will have 2 players
@@ -179,6 +187,40 @@ export class WebServer {
                 }
             }
         }));
+
+
+        /**
+         * Check if a player is registered in a match
+         */
+        this.app.get('/checkRegistered/:playerID', (request, response) => {
+            const playerID: string = request.params['playerID'] ?? '';
+            assert(playerID);
+
+            response
+                .status(HttpStatus.OK)
+                .json({alreadyRegistered: this.registeredPlayers.has(playerID)});
+        });
+
+
+        /**
+         * Clear a registered player from playing
+         * 
+         * 
+         */
+        this.app.get('/exit/:playerID', (request, response) => {
+            const playerID: string = request.params['playerID'] ?? '';
+            assert(playerID);
+
+            const opponent: string = this.matches.get(playerID)?.getOpponent(playerID) ?? ''; 
+            this.matches.delete(playerID);
+            this.registeredPlayers.delete(playerID);
+            this.matches.delete(opponent);
+            this.registeredPlayers.delete(opponent);
+
+            response
+                .status(HttpStatus.OK)
+                .json({opponent: opponent});
+        });
 
         /**
          * Submit word 'guess' for player with ID 'playerID'
@@ -238,16 +280,13 @@ export class WebServer {
          * If both players in the match opt to play again, server responds with true, the match is cleared, and they play again
          * Otherwise, server responds with false, and the players are removed from the server
          */
-        this.app.get('/playAgain/:playerID/:playAgain', asyncHandler(async (request, response) =>  {
+        this.app.get('/rematch/:playerID', asyncHandler(async (request, response) =>  {
             const playerID: string = request.params['playerID'] ?? '';
-            const playAgain: string = request.params['playAgain'] ?? '';
             assert(playerID);
-            assert(playAgain);
 
-            const playAgainBoolean: boolean = (playAgain === 'true');
             const playersMatch: Match = this.matches.get(playerID) ?? new Match();
 
-            const rematch: boolean = await playersMatch.playAgain(playerID, playAgainBoolean);
+            const rematch: boolean = await playersMatch.rematch(playerID);
             if (!rematch) {
                 this.matches.delete(playerID);
             }
@@ -256,6 +295,7 @@ export class WebServer {
                 .status(HttpStatus.OK)
                 .json({rematch: rematch});
         }));
+
 
         this.app.get('/test', () => {
             PythonShell.runString('x=1+1;print(x)', undefined, function (err) {
