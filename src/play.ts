@@ -131,10 +131,13 @@ function WordGame(playerID: string, opponentID: string) {
         request.send();
     }
     
+    rematchButton.classList.add('hidden');
     playDiv.classList.remove('hidden');
+    removeClass(guessElements, 'hidden');
     welcomePlayerIDText.innerHTML = `Welcome, ${playerID}!`;
     opponentText.innerHTML = `Playing against ${opponentID}`;
     submitButton.disabled = false;
+    rematchButton.disabled = false;
 
     $('#submitButton').off('click').on('click', submitGuess);
     $('#guess').off('keypress').on('keypress', function(event) {

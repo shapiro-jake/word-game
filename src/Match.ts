@@ -217,6 +217,7 @@ export class Match {
      */
     private checkForRematch(): boolean {
         if (this.playAgainResponses === this.numberOfPlayers) {
+            this.previousGuesses.clear();
             this.checkRep();
             return true;
         }
@@ -252,7 +253,6 @@ export class Match {
      */
     private clearMatch(): void {
         this.numberOfGuesses = 0;
-        this.previousGuesses.clear();
         for (const playerID of this.playerIDs) {
             this.guesses.set(playerID, '');
         }
