@@ -80,6 +80,14 @@ function registerPlayer(playerID: string, requestedID: string) {
 
     pairingDiv.classList.remove('hidden');
 
+    window.addEventListener('unload', function exit() {
+        const request = new XMLHttpRequest();
+        const url = `http://localhost:8789/exit/${playerID}`;
+        request.open('GET', url);
+        console.log(`Sending exit request to ${url}`);
+        request.send();
+    });
+
     const request = new XMLHttpRequest();
     const url = `http://localhost:8789/register?playerID=${playerID}&requestedID=${requestedID}`;
 
@@ -122,15 +130,6 @@ function WordGame(playerID: string, opponentID: string) {
         console.log(`Checking if ${playerID} is registered, sending request to ${url}`);
         request.send();
     }
-
-    window.addEventListener('unload', function exit() {
-        const request = new XMLHttpRequest();
-        const url = `http://localhost:8789/exit/${playerID}`;
-        request.open('GET', url);
-        console.log(`Sending exit request to ${url}`);
-        request.send();
-    });
-
     
     playDiv.classList.remove('hidden');
     welcomePlayerIDText.innerHTML = `Welcome, ${playerID}!`;

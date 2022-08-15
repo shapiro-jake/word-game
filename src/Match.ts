@@ -109,6 +109,7 @@ export class Match {
 
         this.players.delete(playerID);
         this.guesses.delete(playerID);
+        this.waitingPlayers.pop();
     }
 
     /**
@@ -227,7 +228,7 @@ export class Match {
      * Get the ID of the opponent of a given player
      * @param playerID the player who's opponent to get
      * 
-     * @returns {string} the ID of the other player in this Match, or void if only 'playerID' is playing
+     * @returns {string} the ID of the other player in this Match, or the empty string if only 'playerID' is playing
      * @throws {error} if 'playerID' is not registered in this Match
      */
      public getOpponent(playerID: string): string {

@@ -210,13 +210,19 @@ export class WebServer {
         this.app.get('/exit/:playerID', (request, response) => {
             const playerID: string = request.params['playerID'] ?? '';
             assert(playerID);
+            const playersMatch: Match = this.matches.get(playerID) ?? new Match();
+            const opponent: string = playersMatch.getOpponent(playerID) ?? ''; 
 
-            const opponent: string = this.matches.get(playerID)?.getOpponent(playerID) ?? ''; 
             this.matches.delete(playerID);
             this.registeredPlayers.delete(playerID);
-            this.matches.delete(opponent);
-            this.registeredPlayers.delete(opponent);
+            playersMatch.unregisterPlayer(playerID);
 
+            if (opponent !== '') {
+                this.matches.delete(opponent);
+                this.registeredPlayers.delete(opponent);
+                playersMatch.unregisterPlayer(opponent);
+            }
+            
             response
                 .status(HttpStatus.OK)
                 .json({opponent: opponent});
