@@ -9,7 +9,7 @@ Two players play the Word Game simultaneously. Initially, they submit a one-word
 To run the Word Game, open two terminals and run the following commands, one in each:
 
 ```bash
-npm run server 8789
+npm run server
 ```
 
 ```bash
