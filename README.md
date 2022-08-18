@@ -16,7 +16,7 @@ npm run server 8789
 npm run watchify-play
 ```
 
-Then, navigate to [localhost:8789](localhost:8789) on as many tabs as you'd like and play the Word Game!
+Then, navigate to [localhost:8789](https://localhost:8789) on as many tabs as you'd like and play the Word Game!
 
 ## Next Steps
 
