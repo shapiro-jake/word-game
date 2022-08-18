@@ -47,17 +47,24 @@ assert(rematchButton);
 const thanksForPlayingText = document.getElementById('thanksText') as HTMLElement;
 assert(thanksForPlayingText);
 
+/**
+ * Start the interactive session for the Word Game
+ */
 function startGame(): void {
+    // Unbind previous "player leaving" event listeners
     $(window).off('unload');
 
-    registrationDiv.classList.remove('hidden');
+    // Reset registration page
+    registrationDiv.classList.remove('div--hidden');
     playerIDInput.value = '';
     requestedIDInput.value = '';
     registerButton.disabled = false;
 
     $('#registerButton').off('click').on('click', function() {
-        registrationDiv.classList.add('hidden');
+        // Clean registration page
+        registrationDiv.classList.add('div--hidden');
         registerButton.disabled = true;
+
         const playerID: string = playerIDInput.value;
         const requestedID: string = requestedIDInput.value;
         registerPlayer(playerID, requestedID);
@@ -76,10 +83,19 @@ function startGame(): void {
     });
 }
 
-function registerPlayer(playerID: string, requestedID: string) {
+/**
+ * Try to register a player with 'playerID' to play against a player with ID 'requestedID',
+ *     or a randmo player if 'requestedID' === ''
+ * 
+ * @param {string} playerID the ID to be registered
+ * @param {string} requestedID the ID of the requested opponent, if any
+ */
+function registerPlayer(playerID: string, requestedID: string): void {
 
-    pairingDiv.classList.remove('hidden');
+    // Reset pairing page
+    pairingDiv.classList.remove('div--hidden');
 
+    // Listen for player leaving while playing or waiting to be paired 
     window.addEventListener('unload', function exit() {
         const request = new XMLHttpRequest();
         const url = `http://localhost:8789/exit/${playerID}`;
@@ -91,11 +107,16 @@ function registerPlayer(playerID: string, requestedID: string) {
     const request = new XMLHttpRequest();
     const url = `http://localhost:8789/register?playerID=${playerID}&requestedID=${requestedID}`;
 
+    // Listen for registration attempt to be processed by the server
     request.addEventListener('load', function onRegister() {
-        pairingDiv.classList.add('hidden');
+        // Clean pairing page
+        pairingDiv.classList.add('div--hidden');
+
+        // Check for error in registering
         if (this.status === HttpStatus.NOT_ACCEPTABLE) {
             startGame();
             alert(`${this.responseText}`);
+        // Successful registration
         } else {
             console.log(`Successfully registered ${playerID}. Starting the game now...`);
             const opponentID: string = JSON.parse(this.response).opponent;
@@ -108,7 +129,14 @@ function registerPlayer(playerID: string, requestedID: string) {
     request.send();
 }
 
+/**
+ * Start the Word Game between 'playerID' and 'opponentID'
+ * 
+ * @param {string} playerID the ID of the player playing the Word Game
+ * @param {string} opponentID the ID of the opponent of 'playerID'
+ */
 function WordGame(playerID: string, opponentID: string) {
+    // Continuously check if 'playerID' is still registered in his/her match
     const checkRegisteredInterval = setInterval(checkRegistered, 1000, playerID);
 
     function checkRegistered() {
@@ -117,6 +145,7 @@ function WordGame(playerID: string, opponentID: string) {
 
         request.addEventListener('loadend', function checkedIfRegistered() {
             const isRegistered: boolean = JSON.parse(this.response).alreadyRegistered;
+            // If the player is no longer registered, restart the interactive session
             if (!isRegistered) {
                 console.log(`${playerID} is not registered! Restarting game!`);
                 clearInterval(checkRegisteredInterval);
@@ -131,19 +160,19 @@ function WordGame(playerID: string, opponentID: string) {
         request.send();
     }
     
-    rematchButton.classList.add('hidden');
-    playDiv.classList.remove('hidden');
-    removeClass(guessElements, 'hidden');
+    // Reset the play page
+    rematchButton.classList.add('button--hidden');
+    playDiv.classList.remove('div--hidden');
+    removeClass(guessElements, 'div--hidden');
     welcomePlayerIDText.innerHTML = `Welcome, ${playerID}!`;
     opponentText.innerHTML = `Playing against ${opponentID}`;
     submitButton.disabled = false;
-    rematchButton.disabled = false;
+    rematchButton.disabled = true;
 
     $('#submitButton').off('click').on('click', submitGuess);
     $('#guess').off('keypress').on('keypress', function(event) {
         if (event.key === 'Enter'){
             submitButton.click();
-            submitButton.disabled = true;
         }
     });
 
@@ -153,24 +182,30 @@ function WordGame(playerID: string, opponentID: string) {
         submitButton.disabled = true;
 
         const guess = guessInput.value;
-
         const request = new XMLHttpRequest();
         const url = `http://localhost:8789/submit/${playerID}/${guess}`;
 
+        // Listen for the submission to process after both players have submitted guesses
         request.addEventListener('load', function onSubmit() {
+            // The guess is invalid
             if (this.status === HttpStatus.NOT_ACCEPTABLE) {
                 alert(`${this.responseText}`);
                 submitButton.disabled = false;
+            // The guess is valid
             } else {
                 guessInput.value = '';
 
                 const result = JSON.parse(this.response);
+                // The players got a match
                 if (result.match) {    
-                    addClass(guessElements, 'hidden');
-                    rematchButton.classList.remove('hidden');
+                    // Hide guess elements and show rematch button
+                    addClass(guessElements, 'div--hidden');
+                    rematchButton.disabled = false;
+                    rematchButton.classList.remove('button--hidden');
 
                     previousGuessesText.innerHTML = `Congratulations! You guys matched with \"${result.matchingGuess}\"
                                                  after ${result.numberOfGuesses} guesses!`;
+                // The players did not get a match
                 } else {
                     submitButton.disabled = false;
                     previousGuessesText.innerHTML = `Womp, womp. You guys did not submit a match.\nPrevious guesses: \"${result.guess1}\" and \"${result.guess2}\"`;
@@ -189,15 +224,19 @@ function WordGame(playerID: string, opponentID: string) {
         const request = new XMLHttpRequest();
         const url = `http://localhost:8789/rematch/${playerID}`;
 
+        // Listen for the rematch request to process after both players have opted for a rematch
         request.addEventListener('load', function onRematch() {
-            rematchButton.disabled = false;
-            rematchButton.classList.add('hidden');
-            removeClass(guessElements, 'hidden');
+            // Reset play text elements
+            rematchButton.classList.add('button--hidden');
+            removeClass(guessElements, 'div--hidden');
             previousGuessesText.innerHTML = '';
 
             const rematch = JSON.parse(this.response).rematch;
+            // Both players have opted for a rematch
             if (rematch) {
                 submitButton.disabled = false;
+                alert('Both of you have elected to play again! Enjoy!');
+            // There will be no rematch
             } else {
                 cleanPlayDiv();
                 startGame();
@@ -209,8 +248,9 @@ function WordGame(playerID: string, opponentID: string) {
         request.send();
     }
 
+    // Clean the play div
     function cleanPlayDiv() {
-        playDiv.classList.add('hidden');
+        playDiv.classList.add('div--hidden');
         welcomePlayerIDText.innerHTML = '';
         opponentText.innerHTML = '';
         previousGuessesText.innerHTML = '';
@@ -218,12 +258,14 @@ function WordGame(playerID: string, opponentID: string) {
     }
 }
 
+// Add a class to a collection of HTML elements
 function addClass(elements: HTMLCollectionOf<Element>, addedClass: string): void {
     for (const element of elements) {
         element.classList.add(addedClass);
     }
 }
 
+// Remove a class to a collection of HTML elements
 function removeClass(elements: HTMLCollectionOf<Element>, removedClass: string): void {
     for (const element of elements) {
         element.classList.remove(removedClass);

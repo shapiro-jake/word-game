@@ -11,37 +11,43 @@ import {PythonShell} from 'python-shell';
 
 
 /**
- * HTTP web game server that allows exactly two players with different usernames to play the 'Word Game'.
- * 
- * It can handle three different requests:
- *     - A player can sign up to play with an entered username /register/PlayerID
- *     - Once there are two players registered, each player can enter a word /submit/PlayerID/word
- *     - After a game has been completed, each player can elect to play again /playAgain/playerID
+ * HTTP web server that allows players to play the Word Game
  */
 export class WebServer {
-    
-    private readonly app: Application;
     private server: Server|undefined;
+    private readonly app: Application;
     private readonly matches: Map<string, Match> = new Map();
+    private nextMatch: Match = new Match(this.maxPlayers);
     private readonly registeredPlayers: Set<string> = new Set();
-    private nextMatch: Match = new Match();
     private requestedIDs: Set<string> = new Set(); // Set of requested IDs
     private matchRequests: Map<string, string> = new Map(); // Maps requested player to who requested it
 
 
     // Abstraction Function
-    //     AF(app, server, requestedPort, gameState) = an HTTP server 'server' running on an Express Application 'app' on port 'requestedPort'
-    //                                                 that allows two players to play the Word Game with game state 'gameState
+    // 
+    //  AF(server, app, requestedPort,
+    //     matches, nextMatch, registeredPlayers, maxPlayers,
+    //     requestedIDs, matchRequests) =
+    // 
+    //  An HTTP server 'server' supporting the Word Game running on an Express application 'app' on port 'requestedPort'
+    //  where player with ID 'playerID' is playing in match 'matches.get(playerID)',
+    //  the next match to be filled is 'nextMatch', the ID's of registered player in 'registeredPlayers',
+    //  'maxPlayers' playing in a single match,
+    //  the ID's of requested opponents in 'requestedIDs',
+    //  and if a player requested to play player 'requestedID', that player's ID is 'matchRequests.get(requestedID)'
+    //
     // Rep Invariant
-    //     - gameState.numberOfPlayers() <= 2
+    //     - nextMatch.numberOfPlayers <= 1
+    //     - each ID in 'requestedIDs' is a key in 'matchRequests'
+    //
     // Safety From Rep Exposure
     //   All fields are private
-    //   In the constructor, requestedPort is an immutable number
-    //   A mutable GameState is intentionally taken as an argument to the constructor and is therefore not a problem
-    //   All public methods do not return aliases to any parts of the 
-    
+    //   In the constructor, 'requestedPort' and 'maxPlayers' is an immutable number
+    //   All public methods do not return aliases to any parts of the rep
+
     public constructor(
         private readonly requestedPort: number,
+        private readonly maxPlayers: number
     ) {
         this.app = express();
         this.app.use((request, response, next) => {
@@ -49,16 +55,15 @@ export class WebServer {
             next();
         });
 
-        /**
-         * Set '/dist' to static directory from which to serve files
-         */
+        // Serve static files from 'dist' or 'html'
         this.app.use(express.static('dist'));
         this.app.use(express.static('html'));
+        // Allow for parsing 
         this.app.use(bodyParser.json());
         this.app.use(bodyParser.urlencoded({ extended: true }));
 
+        // Test GET method
         this.app.get('/test', (request, response) => {
-            return response.send('hello');
             console.log('HERE');
         });
         
@@ -69,24 +74,14 @@ export class WebServer {
             response.sendFile(path.resolve('html/play.html'));
         });
 
-
-        // /**
-        //  * Handle a request for /register/ which means they registered the empty string as playerID
-        //  */
-        // this.app.get('/register/', (request, response) => {
-        //     response
-        //         .status(HttpStatus.NOT_ACCEPTABLE)
-        //         .type('text')
-        //         .send('The empty string is an invalid username!');
-        // });
-
         /** 
          * Handle a request for /register/playerID by responding with the response of the Word Game
-         * if playerID consists of only alphanumeric characters; error 406 otherwise.
+         * if playerID consists of only alphanumeric characters and is not already registered; error 406 otherwise.
          */
         this.app.get('/register', asyncHandler(async (request, response): Promise<any> => {
             const playerID: string = request.query['playerID']?.toString() ?? '';
             const requestedID: string = request.query['requestedID']?.toString() ?? '';
+
             // Check that playerID is valid
             if (!this.validID(playerID)) {
                 return response
@@ -110,20 +105,22 @@ export class WebServer {
                 // Force playerID to play requesting player
                 this.requestedIDs.delete(playerID);
                 const requestingPlayer: string = this.matchRequests.get(playerID) ?? '';
-                const requestedMatch: Match = this.matches.get(requestingPlayer) ?? new Match();
+                this.matchRequests.delete(playerID);
+
+                const requestedMatch: Match = this.matches.get(requestingPlayer) ?? new Match(maxPlayers);
                 this.matches.set(playerID, requestedMatch);
                 this.registeredPlayers.add(playerID);
 
                 await requestedMatch.registerPlayer(playerID);
 
-                // At this point, requested match of playerID will have 2 players
+                // At this point, requested match of playerID will have 'maxPlayers' players
                 const opponent: string = this.matches.get(playerID)?.getOpponent(playerID) ?? '';
                 return response
                     .status(HttpStatus.OK)
                     .json({opponent: opponent});
             }
             
-            // Pair against next person in line
+            // No requested ID, so pair against next person in line
             if (requestedID === '') {
                 this.matches.set(playerID, this.nextMatch);
                 this.registeredPlayers.add(playerID);
@@ -131,11 +128,11 @@ export class WebServer {
                 await this.nextMatch.registerPlayer(playerID);
 
                 // Match is full, so create a new match for which players can register
-                if (this.nextMatch.numberOfPlayers === 2) {
-                    this.nextMatch = new Match();
+                if (this.nextMatch.numberOfPlayers === maxPlayers) {
+                    this.nextMatch = new Match(maxPlayers);
                 }
 
-                // At this point, match of playerID will have 2 players
+                // At this point, match of playerID will have maxPlayers players
                 const opponent: string = this.matches.get(playerID)?.getOpponent(playerID) ?? '';
                 response
                     .status(HttpStatus.OK)
@@ -149,36 +146,39 @@ export class WebServer {
                         .status(HttpStatus.NOT_ACCEPTABLE)
                         .type('text')
                         .send(`${requestedID} is an invalid username!`);
+
                 // Can't request yourself!
                 } else if (playerID === requestedID) {
                     response
                         .status(HttpStatus.NOT_ACCEPTABLE)
                         .type('text')
                         .send(`Can't request to play against yourself!`);
+                // Valid requested ID
                 } else {
-                    // requested player is waiting to be paired up
-                    if (this.matches.get(requestedID)!== undefined && this.matches.get(requestedID)?.numberOfPlayers !== 2) {
-                        const requestedMatch: Match = this.matches.get(requestedID) ?? new Match();
+                    this.registeredPlayers.add(playerID);
+
+                    // Requested player is waiting to be paired up
+                    if (this.matches.get(requestedID)!== undefined && this.matches.get(requestedID)?.numberOfPlayers !== maxPlayers) {
+                        const requestedMatch: Match = this.matches.get(requestedID) ?? new Match(maxPlayers);
                         this.matches.set(playerID, requestedMatch);
-                        this.registeredPlayers.add(playerID);
 
                         await requestedMatch.registerPlayer(playerID);
-                        this.nextMatch = new Match();
+                        this.nextMatch = new Match(maxPlayers);
 
                         const opponent: string = this.matches.get(playerID)?.getOpponent(playerID) ?? '';
                         response
                             .status(HttpStatus.OK)
                             .json({opponent: opponent});
+                    // Requested player has not yet registered
                     } else {
-                        const requestedMatch: Match = new Match();
+                        const requestedMatch: Match = new Match(maxPlayers);
                         this.matches.set(playerID, requestedMatch);
                         this.requestedIDs.add(requestedID);
                         this.matchRequests.set(requestedID, playerID);
-                        this.registeredPlayers.add(playerID);
 
                         await requestedMatch.registerPlayer(playerID);
     
-                        // At this point, requested match of playerID will have 2 players
+                        // At this point, requested match of playerID will have maxPlayers players
                         const opponent: string = this.matches.get(playerID)?.getOpponent(playerID) ?? '';
                         response
                             .status(HttpStatus.OK)
@@ -204,13 +204,11 @@ export class WebServer {
 
         /**
          * Clear a registered player from playing
-         * 
-         * 
          */
         this.app.get('/exit/:playerID', (request, response) => {
             const playerID: string = request.params['playerID'] ?? '';
             assert(playerID);
-            const playersMatch: Match = this.matches.get(playerID) ?? new Match();
+            const playersMatch: Match = this.matches.get(playerID) ?? new Match(maxPlayers);
             const opponent: string = playersMatch.getOpponent(playerID) ?? ''; 
 
             this.matches.delete(playerID);
@@ -232,7 +230,7 @@ export class WebServer {
          * Submit word 'guess' for player with ID 'playerID'
          * 
          * Handle a request for /submit/playerID/guess by responding with the response of the Word Game
-         * if 'guess' is a single word that consists of only letters and has not been guess yet;
+         * if 'guess' is a single word that consists of only letters and has not been guessed yet;
          * error 406 otherwise
          * 
          * Requires that playerID is already registered in a match
@@ -244,7 +242,7 @@ export class WebServer {
             assert(guess);
 
             guess = guess.toLowerCase();
-            const playersMatch: Match = this.matches.get(playerID) ?? new Match();
+            const playersMatch: Match = this.matches.get(playerID) ?? new Match(maxPlayers);
 
             // Invalid guess - CHECK FOR WHITESPACE
             if(!/^[a-zA-Z]+$/.test(guess)) {
@@ -263,14 +261,12 @@ export class WebServer {
             // Valid guess
             } else {
                 const { match, guess1, guess2 } = await playersMatch.submitWord(playerID, guess);
-                // await playersMatch.submitWord(playerID, guess);
-                // const { match, guess1, guess2 } = playersMatch.checkForMatch();
 
                 // It's a match!
                 if (match) {
                     response
                         .status(HttpStatus.OK)
-                        .json({match: true, matchingGuess: guess1, numberOfGuesses: playersMatch.getNumberOfGuesses});
+                        .json({match: true, matchingGuess: guess1, numberOfGuesses: playersMatch.getNumberOfRounds});
 
                 // Not a match
                 } else {
@@ -282,7 +278,7 @@ export class WebServer {
         }));
 
         /**
-         * Handle a request for /playAgain/playerID for playerID that is registered in a match that just finished
+         * Handle a request for /rematch/playerID for playerID that is registered in a match that just finished
          * If both players in the match opt to play again, server responds with true, the match is cleared, and they play again
          * Otherwise, server responds with false, and the players are removed from the server
          */
@@ -290,31 +286,25 @@ export class WebServer {
             const playerID: string = request.params['playerID'] ?? '';
             assert(playerID);
 
-            const playersMatch: Match = this.matches.get(playerID) ?? new Match();
+            const playersMatch: Match = this.matches.get(playerID) ?? new Match(maxPlayers);
 
             const rematch: boolean = await playersMatch.rematch(playerID);
+
             if (!rematch) {
                 this.matches.delete(playerID);
+                this.registeredPlayers.delete(playerID);
             }
 
             response
                 .status(HttpStatus.OK)
                 .json({rematch: rematch});
         }));
-
-
-        this.app.get('/test', () => {
-            PythonShell.runString('x=1+1;print(x)', undefined, function (err) {
-                if (err) throw err;
-                console.log('finished');
-              });
-        });
     };
 
     /**
      * Check if an ID is valid (one or more alphanumeric characters without spaces)
      * 
-     * @param playerID the ID to be checked
+     * @param {string} playerID the ID to be checked
      * @returns returns true iff 'playerID' is composed of one or more alphanumeric characters without spaces
      *          false otherwise
      */
@@ -361,11 +351,12 @@ export class WebServer {
 
 
 /**
- * Start a server
+ * Start a server to handle Word Game for 2-player matches
  */
  async function main(): Promise<void> {
     const desiredPort = 8789;
-    const server: WebServer = new WebServer(desiredPort);
+    const maxPlayers = 2;
+    const server: WebServer = new WebServer(desiredPort, maxPlayers);
     await server.start();
 }
 

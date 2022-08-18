@@ -6,13 +6,13 @@
         <link rel="stylesheet" href="play.css">
     </head>
     <body>
-        <div id="registration" class="main hidden">
+        <div id="registration" class="main div--hidden">
             <h1>Welcome to the Word Game!</h1>
 
             <label for="PlayerID">Enter a username to play!</label><br>
             <input type="text" id="PlayerID" name="PlayerID" placeholder="BobSmithson" autofocus></input><br><br>
 
-            <label for="OpponentID">If you would like to play a specific person, enter their username. To play a rando, leave blank.</label><br>
+            <label for="OpponentID">If you would like to play a specific person, enter their username. To play a random person, leave blank.</label><br>
             <input type="text" id="OpponentID" name="OpponentID" placeholder="Jahseh"></input><br><br>
 
             <button id="registerButton">Register</button>
@@ -20,12 +20,12 @@
             <p class="note">*usernames must consist of only alphanumeric characters without whitespace</p>
         </div>
 
-        <div id="pairing" class="main hidden">
+        <div id="pairing" class="main div--hidden">
             <h1>Waiting to be paired up...</h1>
         </div>
 
-        <div id="play" class="main hidden">
-            <h1>Let's Play the Word Game!</h1>
+        <div id="play" class="main div--hidden">
+            <h1>You're Playing the Word Game!</h1>
 
             <h2 id="welcomePlayerID"></h2>
             <h3 id="opponentText"></h3>
@@ -42,9 +42,10 @@
                 You can only submit once per round!
             </p>
 
-            <button id="rematchButton" class="hidden">Rematch</button>
+            <button id="rematchButton" class="button--hidden">Rematch</button>
         </div>
-        <div id="thanksText" class="main hidden">
+        
+        <div id="thanksText" class="main div--hidden">
             <h1>Thanks for playing the Word Game!</h1>
         </div>
     <script>var exports = {};</script>
