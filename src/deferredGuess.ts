@@ -1,3 +1,14 @@
+/**
+ * Collaboratively authored by Rob Miller and Max Goldman,
+ * with contributions from Saman Amarasinghe, Adam Chlipala,
+ * Srini Devadas, Michael Ernst, John Guttag, Daniel Jackson,
+ * Martin Rinard, and Armando Solar-Lezama,
+ * and from Robert Durfee, Jenna Himawan, Stacia Johanna,
+ * Jessica Shi, Daniel Whatley, and Elizabeth Zhou.
+ * This work is licensed under CC BY-SA 4.0: https://creativecommons.org/licenses/by-sa/4.0/
+ * No changes were made.
+ */
+
 import assert from 'assert';
 
 type Resolver<T> = (value: T | PromiseLike<T>) => void;
