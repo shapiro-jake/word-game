@@ -147,10 +147,10 @@ function WordGame(playerID: string, opponentID: string) {
             const isRegistered: boolean = JSON.parse(this.response).alreadyRegistered;
             // If the player is no longer registered, restart the interactive session
             if (!isRegistered) {
-                console.log(`${playerID} is not registered! Restarting game!`);
+                console.log(`${playerID} is not registered! Restarting the game!`);
                 clearInterval(checkRegisteredInterval);
                 cleanPlayDiv();
-                alert('You suck so much the other player left. Restarting the game now.');
+                alert('Unfortunately, the other player left. Restarting the game now.');
                 startGame();
             }
         });
@@ -208,7 +208,7 @@ function WordGame(playerID: string, opponentID: string) {
                 // The players did not get a match
                 } else {
                     submitButton.disabled = false;
-                    previousGuessesText.innerHTML = `Womp, womp. You guys did not submit a match.\nPrevious guesses: \"${result.guess1}\" and \"${result.guess2}\"`;
+                    previousGuessesText.innerHTML = `Unfortunately, you guys did not submit a match.\nPrevious guesses: \"${result.guess1}\" and \"${result.guess2}\"`;
                 }
             }
         });

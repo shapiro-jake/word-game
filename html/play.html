@@ -10,10 +10,10 @@
             <h1>Welcome to the Word Game!</h1>
 
             <label for="PlayerID">Enter a username to play!</label><br>
-            <input type="text" id="PlayerID" name="PlayerID" placeholder="BobSmithson" autofocus></input><br><br>
+            <input type="text" id="PlayerID" name="PlayerID" placeholder="John Smith" autocomplete="off" autofocus></input><br><br>
 
             <label for="OpponentID">If you would like to play a specific person, enter their username. To play a random person, leave blank.</label><br>
-            <input type="text" id="OpponentID" name="OpponentID" placeholder="Jahseh"></input><br><br>
+            <input type="text" id="OpponentID" name="OpponentID" placeholder="Jane Doe" autocomplete="off"></input><br><br>
 
             <button id="registerButton">Register</button>
 
@@ -33,7 +33,7 @@
             <p id="previousGuesses"></p>
 
             <label class="guess">Enter your guess:</label><br>
-            <input type="text" name="guess" id="guess" class="guess" autofocus></input>
+            <input type="text" name="guess" id="guess" class="guess" autofocus autocomplete="off"></input>
 
             <button id="submitButton" class="guess">Submit</button>
 
