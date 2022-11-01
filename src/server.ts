@@ -6,7 +6,6 @@ import { Match } from './Match';
 import bodyParser from 'body-parser';
 import asyncHandler from 'express-async-handler';
 import path from 'path';
-import {PythonShell} from 'python-shell';
 
 
 
