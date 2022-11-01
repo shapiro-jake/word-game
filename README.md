@@ -20,7 +20,7 @@ Then, navigate to [localhost:8789](https://localhost:8789) on as many tabs as yo
 
 ## Next Steps
 
-As improvements, I'd like to deploy the game to a web domain so players on different machines can play the game at once, to support more than 2 players playing in one match, and to add an element of ML to the Word Game.
+As extensions, I'd like to deploy the game to a web domain so players on different machines can play the game at once, to support more than 2 players playing in one match, and to add an element of ML to the Word Game. Specifically, I'd like to be able to visualize the trajectory of the players' guesses using dimensionality reduction of the words' representations by a model such as Word2Vec, or to allow a player to play against an AI by having the AI guess the most similar word to the previous guesses.
 
 I hope you enjoy!
 
